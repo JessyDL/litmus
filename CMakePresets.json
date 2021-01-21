@@ -1,0 +1,34 @@
+{
+    "version": 1,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 19,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "default",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "examples": {
+                    "type": "BOOL",
+                    "value": "OFF"
+                  }
+            }
+          },
+          {
+            "name": "development",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "examples": {
+                    "type": "BOOL",
+                    "value": "ON"
+                  }
+            }
+          }
+    ]
+  }
