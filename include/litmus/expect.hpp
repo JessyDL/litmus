@@ -14,264 +14,43 @@ namespace litmus
 {
 	inline namespace internal
 	{
-		// template<typename...Ts>
-		// struct any_of_t
-		// {
-		// 	std::tuple<Ts...> values;
-		// };
+		template <typename... Ts>
+		struct any_of_t
+		{
+			std::tuple<Ts...> values;
+		};
+
+		template <typename... Ts>
+		struct throws_t
+		{};
+
+		struct nothrows_t
+		{};
 
 		struct throws_result_t
 		{
 			constexpr throws_result_t() noexcept = default;
 			throws_result_t(bool value) noexcept : result(value) {}
 			throws_result_t(bool value, std::string what) noexcept : result(value), what(what) {}
-			operator bool() const noexcept { return result; }
-			bool result{false};
-			std::string what{};
-		};
 
-		struct nothrows_result_t
-		{
-			constexpr nothrows_result_t() noexcept = default;
-			nothrows_result_t(bool value) noexcept : result(value) {}
-			nothrows_result_t(bool value, std::string what) noexcept : result(value), what(what) {}
+			template <typename... Ts>
+			constexpr bool operator==(const throws_t<Ts...>&) const noexcept
+			{
+				return result;
+			}
+			template <typename... Ts>
+			constexpr bool operator!=(const throws_t<Ts...>&) const noexcept
+			{
+				return !result;
+			}
+			constexpr bool operator==(const nothrows_t&) const noexcept { return !result; }
+			constexpr bool operator!=(const nothrows_t&) const noexcept { return result; }
+
 			operator bool() const noexcept { return result; }
 			bool result{false};
 			std::string what{};
 		};
 	} // namespace internal
-
-	template <typename... Exceptions>
-	struct throws_t
-	{
-	  private:
-		template <typename E, typename... Ex, typename... Ts, typename Rt, typename T>
-		auto throws_impl_mfn(Rt (T::*address)(Ts...), T& object, Ts&&... args) noexcept -> throws_result_t
-		{
-			try
-			{
-				if constexpr(sizeof...(Ex) == 0)
-				{
-					std::invoke(address, &object, std::forward<Ts>(args)...);
-					return false;
-				}
-				else
-					return throws_impl_mfn<Ex...>(address, object, std::forward<Ts>(args)...);
-			}
-			catch(const E& e)
-			{
-				return {true, e.what()};
-			}
-			return false;
-		}
-
-		template <typename E, typename... Ex, typename... Ts, typename Rt, typename T>
-		auto throws_impl_cmfn(Rt (T::*address)(Ts...) const, T& object, Ts&&... args) const noexcept -> throws_result_t
-		{
-			try
-			{
-				if constexpr(sizeof...(Ex) == 0)
-				{
-					std::invoke(address, &object, std::forward<Ts>(args)...);
-					return false;
-				}
-				else
-					return throws_impl_cmfn<Ex...>(address, object, std::forward<Ts>(args)...);
-			}
-			catch(const E& e)
-			{
-				return {true, e.what()};
-			}
-			return false;
-		}
-
-		template <typename E, typename... Ex, typename... Ts, typename Rt>
-		auto throws_impl_fn(Rt (*address)(Ts...), Ts&&... args) const noexcept -> throws_result_t
-		{
-			try
-			{
-				if constexpr(sizeof...(Ex) == 0)
-				{
-					std::invoke(address, std::forward<Ts>(args)...);
-					return false;
-				}
-				else
-					return throws_impl_fn<Ex...>(address, std::forward<Ts>(args)...);
-			}
-			catch(const E& e)
-			{
-				return {true, e.what()};
-			}
-			return false;
-		}
-
-	  public:
-		template <typename... Ts, typename T, typename Rt = void>
-		auto operator()(Rt (T::*address)(Ts...), T& object, Ts&&... args) noexcept -> throws_result_t
-		{
-			try
-			{
-				if constexpr(sizeof...(Exceptions) == 0)
-				{
-					std::invoke(address, &object, std::forward<Ts>(args)...);
-					return false;
-				}
-				else
-					return throws_impl_mfn<Exceptions...>(address, object, std::forward<Ts>(args)...);
-			}
-			catch(const std::exception& e)
-			{
-				return {sizeof...(Exceptions) == 0, e.what()};
-			}
-			catch(...)
-			{
-				return sizeof...(Exceptions) == 0;
-			}
-			return false;
-		}
-
-		template <typename... Ts, typename T, typename Rt = void>
-		auto operator()(Rt (T::*address)(Ts...) const, T& object, Ts&&... args) const noexcept -> throws_result_t
-		{
-			try
-			{
-				if constexpr(sizeof...(Exceptions) == 0)
-				{
-					std::invoke(address, &object, std::forward<Ts>(args)...);
-					return false;
-				}
-				else
-					return throws_impl_cmfn<Exceptions...>(address, object, std::forward<Ts>(args)...);
-			}
-			catch(const std::exception& e)
-			{
-				return {sizeof...(Exceptions) == 0, e.what()};
-			}
-			catch(...)
-			{
-				return sizeof...(Exceptions) == 0;
-			}
-			return false;
-		}
-
-		template <typename... Ts, typename Rt = void>
-		auto operator()(Rt (*address)(Ts...), Ts&&... args) const noexcept -> throws_result_t
-		{
-			try
-			{
-				if constexpr(sizeof...(Exceptions) == 0)
-				{
-					std::invoke(address, std::forward<Ts>(args)...);
-					return false;
-				}
-				else
-					return throws_impl_fn<Exceptions...>(address, std::forward<Ts>(args)...);
-			}
-			catch(const std::exception& e)
-			{
-				return {sizeof...(Exceptions) == 0, e.what()};
-			}
-			catch(...)
-			{
-				return sizeof...(Exceptions) == 0;
-			}
-			return false;
-		}
-
-		template <typename... Ts, typename T, typename Rt = void>
-		auto invoke(Rt (T::*address)(Ts...), T& object, Ts&&... args) noexcept
-		{
-			return this->template operator()<Ts...>(address, object, std::forward<Ts>(args)...);
-		}
-
-		template <typename... Ts, typename T, typename Rt = void>
-		auto invoke(Rt (T::*address)(Ts...) const, T& object, Ts&&... args) const noexcept
-		{
-			return this->template operator()<Ts...>(address, object, std::forward<Ts>(args)...);
-		}
-
-		template <typename... Ts, typename Rt = void>
-		auto invoke(Rt (*address)(Ts...), Ts&&... args) const noexcept
-		{
-			return this->template operator()<Ts...>(address, std::forward<Ts>(args)...);
-		}
-	};
-
-	struct nothrows_t
-	{
-		template <typename... Ts, typename T, typename Rt = void>
-		auto operator()(Rt (T::*address)(Ts...), T& object, Ts&&... args) noexcept -> nothrows_result_t
-		{
-			try
-			{
-				std::invoke(address, &object, std::forward<Ts>(args)...);
-			}
-			catch(const std::exception& e)
-			{
-				return {false, e.what()};
-			}
-			catch(...)
-			{
-				return false;
-			}
-			return true;
-		}
-
-		template <typename... Ts, typename T, typename Rt = void>
-		auto operator()(Rt (T::*address)(Ts...) const, T& object, Ts&&... args) const noexcept -> nothrows_result_t
-		{
-
-			try
-			{
-				std::invoke(address, &object, std::forward<Ts>(args)...);
-			}
-			catch(const std::exception& e)
-			{
-				return {false, e.what()};
-			}
-			catch(...)
-			{
-				return false;
-			}
-			return true;
-		}
-
-		template <typename... Ts, typename Rt = void>
-		auto operator()(Rt (*address)(Ts...), Ts&&... args) const noexcept -> nothrows_result_t
-		{
-			try
-			{
-				std::invoke(address, std::forward<Ts>(args)...);
-			}
-			catch(const std::exception& e)
-			{
-				return {false, e.what()};
-			}
-			catch(...)
-			{
-				return false;
-			}
-			return true;
-		}
-
-		template <typename... Ts, typename T, typename Rt = void>
-		auto invoke(Rt (T::*address)(Ts...), T& object, Ts&&... args) noexcept
-		{
-			return this->template operator()<Ts...>(address, object, std::forward<Ts>(args)...);
-		}
-
-		template <typename... Ts, typename T, typename Rt = void>
-		auto invoke(Rt (T::*address)(Ts...) const, T& object, Ts&&... args) const noexcept
-		{
-			return this->template operator()<Ts...>(address, object, std::forward<Ts>(args)...);
-		}
-
-		template <typename... Ts, typename Rt = void>
-		auto invoke(Rt (*address)(Ts...), Ts&&... args) const noexcept
-		{
-			return this->template operator()<Ts...>(address, std::forward<Ts>(args)...);
-		}
-	};
 
 	inline namespace internal
 	{
@@ -294,11 +73,6 @@ namespace litmus
 			if constexpr(std::is_same_v<T, throws_result_t>)
 			{
 				return ((val == true) ? std::string("EXCEPT") : std::string("NOEXCEPT")) +
-					   ((val.what.empty()) ? "" : ": ") + val.what;
-			}
-			if constexpr(std::is_same_v<T, nothrows_result_t>)
-			{
-				return ((val == true) ? std::string("NOEXCEPT") : std::string("EXCEPT")) +
 					   ((val.what.empty()) ? "" : ": ") + val.what;
 			}
 			std::string res;
@@ -326,6 +100,49 @@ namespace litmus
 			}
 			return res;
 		}
+
+		template <typename Ex, typename... ExRemainder>
+		constexpr auto throws_fn_impl(auto& fn, auto&... args) -> throws_result_t
+		{
+			try
+			{
+				if constexpr(sizeof...(ExRemainder) == 0)
+				{
+					fn(args...);
+				}
+				else
+				{
+					return throws_fn_impl<ExRemainder...>(fn, args...);
+				}
+			}
+			catch(const Ex& e)
+			{
+				return {true, e.what()};
+			}
+			return {false};
+		}
+
+		template <typename... Exceptions>
+		constexpr auto throws_fn(auto& fn, auto&... args) noexcept -> throws_result_t
+		{
+			try
+			{
+				if constexpr(sizeof...(Exceptions) == 0)
+				{
+					fn(args...);
+				}
+				else
+				{
+					return throws_fn_impl<Exceptions...>(fn, args...);
+				}
+			}
+			catch(...)
+			{
+				return {true, "unknown exception raised."};
+			}
+			return {false};
+		}
+
 
 		void evaluate(const source_location& source, test_result_t::expect_t::operation_t operation,
 					  std::string_view keyword, std::string& lhs_user, std::string& rhs_user);
@@ -425,6 +242,44 @@ namespace litmus
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value != rhs};
 				log(value, rhs, res, test_result_t::expect_t::operation_t::inequal);
+				return res;
+			}
+			auto operator==(const nothrows_t& rhs) const noexcept -> bool
+			{
+				if(suite_context.output.fatal) return false;
+				const auto value =
+					std::apply([& fun = m_Fun](auto&... args) { return throws_fn<>(fun, args...); }, m_Args);
+				const bool res{value == rhs};
+				log(value, rhs, res, test_result_t::expect_t::operation_t::equal);
+				return res;
+			}
+			auto operator!=(const nothrows_t& rhs) const noexcept -> bool
+			{
+				if(suite_context.output.fatal) return false;
+				const auto value =
+					std::apply([& fun = m_Fun](auto&... args) { return throws_fn<>(fun, args...); }, m_Args);
+				const bool res{value != rhs};
+				log(value, rhs, res, test_result_t::expect_t::operation_t::equal);
+				return res;
+			}
+			template <typename... Exceptions>
+			auto operator==(const throws_t<Exceptions...>& rhs) const noexcept -> bool
+			{
+				if(suite_context.output.fatal) return false;
+				const auto value = std::apply(
+					[& fun = m_Fun](auto&... args) { return throws_fn<Exceptions...>(fun, args...); }, m_Args);
+				const bool res{value == rhs};
+				log(value, rhs, res, test_result_t::expect_t::operation_t::equal);
+				return res;
+			}
+			template <typename... Exceptions>
+			auto operator!=(const throws_t<Exceptions...>& rhs) const noexcept -> bool
+			{
+				if(suite_context.output.fatal) return false;
+				const auto value = std::apply(
+					[& fun = m_Fun](auto&... args) { return throws_fn<Exceptions...>(fun, args...); }, m_Args);
+				const bool res{value != rhs};
+				log(value, rhs, res, test_result_t::expect_t::operation_t::equal);
 				return res;
 			}
 			auto operator<(const auto& rhs) const noexcept -> bool
@@ -535,5 +390,12 @@ namespace litmus
 		expect_info.message = std::move(combine_text(internal_to_string(std::forward<Ts>(values))...));
 	}
 
+	template <typename... Ts>
+	[[nodiscard]] constexpr auto throws() noexcept
+		-> std::conditional_t<sizeof...(Ts) == 0, throws_t<std::exception>, throws_t<Ts...>>
+	{
+		return {};
+	}
 
+	[[nodiscard]] constexpr auto nothrows() noexcept -> nothrows_t { return {}; }
 } // namespace litmus

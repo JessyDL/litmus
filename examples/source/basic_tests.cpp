@@ -79,8 +79,8 @@ auto fixture_test = suite<"vector", "cat1", "cat3">(5) = [](int value) {
 		   has_ran) == true;
 	expect(&type::size, &vec) == ((has_ran) ? 1u : 0u);
 
-	expect(nothrows_t{}(&type::size, vec)) == true;
-	expect(throws_t<>{}(&type::resize, vec, -1ul)) == true;
+	expect([&] { vec.size(); }) == nothrows();
+	expect([&] { vec.at(-1u); }) == throws<std::range_error>();
 
 	expect(
 		[&vec](int value) {
