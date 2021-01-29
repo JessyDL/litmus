@@ -12,6 +12,7 @@ thread_local litmus::internal::suite_context_t litmus::internal::suite_context		
 #include <fstream>
 #include <functional>
 #include <future>
+#include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
@@ -125,6 +126,14 @@ void configure(std::span<const std::string_view> args)
 							std::runtime_error(std::string("unknown argument: ") + std::string(args[index]))))
 	{
 		control = index;
+	}
+
+	if(!config->no_source && strlen(source_location::current().file_name()) == 0)
+	{
+		config->no_source = true;
+		std::cout << "turning off source expansion, binary was compiled with a compiler that has an incomplete "
+					 "std::source_location implementation"
+				  << std::endl;
 	}
 
 	if(!config->no_source)
