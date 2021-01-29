@@ -1,4 +1,5 @@
 #pragma once
+#include <type_traits>
 
 #include <litmus/details/fixed_string.hpp>
 #include <litmus/details/scope.hpp>
@@ -6,8 +7,80 @@
 
 namespace litmus
 {
+	template <typename T>
+	inline auto type_to_name(std::type_identity<T>) -> std::string
+	{
+		return typeid(T).name();
+	}
+
+	template <>
+	inline auto type_to_name(std::type_identity<uint8_t>) -> std::string
+	{
+		return "ui8";
+	}
+	template <>
+	inline auto type_to_name(std::type_identity<uint16_t>) -> std::string
+	{
+		return "ui16";
+	}
+	template <>
+	inline auto type_to_name(std::type_identity<uint32_t>) -> std::string
+	{
+		return "ui32";
+	}
+	template <>
+	inline auto type_to_name(std::type_identity<uint64_t>) -> std::string
+	{
+		return "ui64";
+	}
+	template <>
+	inline auto type_to_name(std::type_identity<int8_t>) -> std::string
+	{
+		return "i8";
+	}
+	template <>
+	inline auto type_to_name(std::type_identity<int16_t>) -> std::string
+	{
+		return "i16";
+	}
+	template <>
+	inline auto type_to_name(std::type_identity<int32_t>) -> std::string
+	{
+		return "i32";
+	}
+	template <>
+	inline auto type_to_name(std::type_identity<int64_t>) -> std::string
+	{
+		return "i64";
+	}
+	template <>
+	inline auto type_to_name(std::type_identity<float>) -> std::string
+	{
+		return "float";
+	}
+	template <>
+	inline auto type_to_name(std::type_identity<double>) -> std::string
+	{
+		return "double";
+	}
+	template <>
+	inline auto type_to_name(std::type_identity<bool>) -> std::string
+	{
+		return "bool";
+	}
+
+	template <auto Value>
+	inline auto type_to_name(std::type_identity<vpack_value<Value>>) -> std::string
+	{
+		return std::to_string(Value);
+	}
 	inline namespace internal
 	{
+		template <typename T>
+		inline auto type_to_name_internal() -> std::string
+		{
+			return type_to_name(std::type_identity<std::remove_cvref_t<T>>{});
+		}
 		struct suite_functor
 		{
 			static constexpr bool supports_generators = true;
@@ -28,7 +101,7 @@ namespace litmus
 					if constexpr(parameter_size > 0)
 					{
 						fullname += "<";
-						fullname += (std::string(typeid(InvokeTypes).name()) + ", " + ...);
+						fullname += ((type_to_name_internal<InvokeTypes>() + ", ") + ...);
 						fullname.erase(fullname.size() - 1);
 						fullname.back() = '>';
 					}
