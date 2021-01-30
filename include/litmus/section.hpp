@@ -38,8 +38,7 @@ namespace litmus
 			}
 
 			template <typename... InvokeTypes, typename... Ts>
-			constexpr void operator()(auto& fn, const char* name, [[maybe_unused]] const source_location& location,
-									  Ts&&... values)
+			constexpr void operator()(auto& fn, const char* name, const source_location& location, Ts&&... values)
 			{
 				// we clear the stack when we detect it is the last "known" section we need to play.
 				// this results in subsequent sections triggering "suite_context.stack.empty()".
@@ -56,7 +55,8 @@ namespace litmus
 				suite_context.index = 0;
 
 				suite_context.working_stack.set(m_Depth, m_Index);
-				suite_context.output.scope_open(name, suite_context.working_stack);
+				suite_context.output.scope_open(name, suite_context.working_stack, location,
+												std::vector<std::string>{std::to_string(values)...});
 				try
 				{
 					if constexpr(sizeof...(InvokeTypes) > 0)

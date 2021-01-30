@@ -1,13 +1,15 @@
 #include <litmus/details/runner.hpp>
 #include <litmus/details/context.hpp>
 #include <litmus/litmus.hpp>
-unsigned litmus::internal::runner_t::m_RefCount													   = 0;
-std::vector<std::function<litmus::internal::test_result_t()>>* litmus::internal::runner_t::m_Tests = nullptr;
-unsigned litmus::internal::config_t::m_RefCount													   = 0;
-litmus::internal::config_t::data_t* litmus::internal::config_t::data							   = nullptr;
-thread_local litmus::internal::suite_context_t litmus::internal::suite_context					   = {};
+unsigned litmus::internal::runner_t::m_RefCount																  = 0;
+std::vector<std::function<litmus::internal::test_result_t()>>* litmus::internal::runner_t::m_Tests			  = nullptr;
+std::unordered_map<const char*, litmus::internal::runner_t::test_t>* litmus::internal::runner_t::m_NamedTests = nullptr;
+unsigned litmus::internal::config_t::m_RefCount																  = 0;
+litmus::internal::config_t::data_t* litmus::internal::config_t::data										  = nullptr;
+thread_local litmus::internal::suite_context_t litmus::internal::suite_context								  = {};
 
 #include <cstring>
+#include <chrono>
 #include <exception>
 #include <fstream>
 #include <functional>
@@ -184,16 +186,23 @@ class stream_formatter final : public litmus::formatter
 			parameters = dim(italics(combine_text(" [ ", std::move(parameters), " ]")));
 		}
 
-		auto lhs	 = combine_text(std::string(scope.id.size() * 2, ' '), bold(scope.name), std::move(parameters));
-		auto rhs	 = colour(combine_text('[', pass_str, '/', total_str, ']'), style_colours[style_index][0],
-						  style_colours[style_index][1], style_colours[style_index][2]);
-		auto padding = scope.id.size() * 2 + scope.name.size() + param_size;
-		const auto rhs_size = pass_str.size() + total_str.size() + 3;
+		auto duration_str = std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(scope.duration_end -
+																								 scope.duration_start)
+											   .count()) +
+							"μs ";
+
+		auto lhs = combine_text(std::string((scope.id.size() + extra_depth) * 2, ' '), bold(scope.name),
+								std::move(parameters));
+		auto rhs =
+			duration_str + colour(combine_text('[', pass_str, '/', total_str, ']'), style_colours[style_index][0],
+								  style_colours[style_index][1], style_colours[style_index][2]);
+		auto padding		= (scope.id.size() + extra_depth) * 2 + scope.name.size() + param_size;
+		const auto rhs_size = pass_str.size() + total_str.size() + 2 + duration_str.size();
 		padding				= (padding > (120 - rhs_size)) ? 0u : 120 - rhs_size - padding;
 		stream.output(combine_text(std::move(lhs), std::string(padding, ' '), std::move(rhs), '\n'));
-		stream.output(colour(
-			combine_text(std::string(scope.id.size() * 2, ' '), std::string(120u - scope.id.size() * 2, '-'), '\n'),
-			"80", "80", "96"));
+		stream.output(colour(combine_text(std::string((scope.id.size() + extra_depth) * 2, ' '),
+										  std::string(120u - (scope.id.size() + extra_depth) * 2, '-'), '\n'),
+							 "80", "80", "96"));
 	}
 
 	void expect(const test_result_t::expect_t& expect, const test_result_t::scope_t& scope) override
@@ -257,39 +266,87 @@ class stream_formatter final : public litmus::formatter
 			//					' ', condense_block(expect., expect.));
 		}(expect);
 		stream.output(combine_text(
-			std::string((scope.id.size() + 1) * 2, ' '),
+			std::string((scope.id.size() + 1 + extra_depth) * 2, ' '),
 			colour(combine_text(outcome[outcome_index],
 								((outcome_index == 2) ? std::string_view("=> ") : std::string_view(" => "))),
 				   style_colours[outcome_index][0], style_colours[outcome_index][1], style_colours[outcome_index][2]),
 			codeblock, '\n'));
 	}
 
-	void suite_end(const test_result_t::scope_t& scope, const source_location& location) override
+	void suite_begin(const char* name, size_t pass, size_t fail, size_t fatal,
+					 [[maybe_unused]] const source_location& location, std::chrono::microseconds duration) override
+	{
+		auto name_str	 = std::string(name);
+		auto pass_str	 = std::to_string(pass);
+		auto total_str	= (fatal > 0) ? std::string("?") : std::to_string(pass + fail);
+		auto duration_str = std::to_string(duration.count()) + "μs";
+
+		auto rhs_size = pass_str.size() + total_str.size() + duration_str.size() + 3;
+
+		size_t outcome_index = (fatal > 0) ? 2 : (fail > 0) ? 1 : (pass > 0) ? 0 : 3;
+		std::string rhs		 = combine_text(
+			 duration_str, colour(combine_text(" [", pass_str, "/", total_str, "]"), style_colours[outcome_index][0],
+								  style_colours[outcome_index][1], style_colours[outcome_index][2]));
+
+
+		stream.output(combine_text(bold(name_str), std::string(120u - name_str.size() - rhs_size, ' '), rhs, '\n'));
+		extra_depth   = 0u;
+		has_templates = false;
+
+		stream.output(colour(combine_text(std::string(120u, '-'), '\n'), "80", "80", "96"));
+	}
+
+	void suite_end([[maybe_unused]] const char* name, [[maybe_unused]] size_t pass, size_t fail, size_t fatal,
+				   const source_location& location, [[maybe_unused]] std::chrono::microseconds duration) override
 	{
 		auto filename = config->source + location.file_name() + ":" + std::to_string(location.line());
 
-		if(scope.fail != 0 || scope.fatal != 0)
+		if(fail != 0 || fatal != 0)
 		{
-			stream.output(colour(combine_text("  ", std::to_string(scope.fail), " fails and ",
-											  std::to_string(scope.fatal), " fatals in ", filename, '\n'),
+			stream.output(colour(combine_text("  ", std::to_string(fail), " fails and ", std::to_string(fatal),
+											  " fatals in ", filename, '\n'),
 								 "255", "0", "0"));
 		}
 		stream.output("\n");
 	}
 
+	void suite_iterate_templates(std::string_view templates) override
+	{
+		stream.output(combine_text("  template<", templates, ">\n"));
+		extra_depth   = 1u;
+		has_templates = true;
+	}
+	void suite_iterate_parameters(const std::vector<std::string>& parameters) override
+	{
+		std::string pstr{};
+		extra_depth = (has_templates) ? 2u : 1u;
 
-	void write_totals(size_t pass, size_t fail, size_t fatal) override
+		pstr = std::move(join(parameters, ", "));
+		pstr = dim(italics(combine_text(std::string(extra_depth * 2u, ' '), "arguments { ", std::move(pstr), " }\n")));
+
+		stream.output(pstr);
+	}
+
+
+	void write_totals(size_t pass, size_t fail, size_t fatal, std::chrono::microseconds duration) override
 	{
 		if(fail == 0 && fatal == 0)
 		{
-			stream.output(colour(bold(combine_text("\nlitmus detected all ", std::to_string(pass), " tests passed.\n")),
-								 "0", "255", "0"));
+			stream.output(colour(
+				bold(combine_text(
+					"\nlitmus detected all ", std::to_string(pass), " tests passed in ",
+					std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() * 0.001),
+					"s.\n")),
+				"0", "255", "0"));
 		}
 		else
 		{
-			stream.output(colour(bold(combine_text("\nlitmus detected ", std::to_string(fail), " fails and ",
-												   std::to_string(fatal), " fatals.\n")),
-								 "255", "0", "0"));
+			stream.output(colour(
+				bold(combine_text(
+					"\nlitmus detected ", std::to_string(fail), " fails and ", std::to_string(fatal), " fatals in ",
+					std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() * 0.001),
+					"s.\n")),
+				"255", "0", "0"));
 		}
 	}
 
@@ -298,6 +355,9 @@ class stream_formatter final : public litmus::formatter
 	constexpr static std::array<std::array<const char*, 3>, 4> style_colours{
 		{{"0", "180", "50"}, {"220", "0", "0"}, {"200", "0", "200"}, {"200", "150", "50"}}};
 	const out_wrapper_t& stream;
+
+	size_t extra_depth{0u};
+	bool has_templates{false};
 };
 
 template <typename R>
@@ -319,54 +379,89 @@ auto litmus::run(int argc, char* argv[], out_wrapper_t stream, formatter* format
 	size_t fatal{0};
 	size_t fail{0};
 	size_t pass{0};
-
+	std::chrono::microseconds duration{};
+	config->single_threaded = true;
 	if(config->single_threaded)
 	{
-		for(const auto& test : internal::runner)
+		for(const auto& [name, test_units] : internal::runner)
 		{
-			auto results{test()};
-			size_t local_fatal{0};
-			size_t local_fail{0};
-			size_t local_pass{0};
-			results.get_result_values(local_pass, local_fail, local_fatal);
-			pass += local_pass;
-			fail += local_fail;
-			fatal += local_fatal;
-			results.to_string(formatter);
+			std::vector<test_result_t> results{};
+
+			size_t suite_fatal{0};
+			size_t suite_fail{0};
+			size_t suite_pass{0};
+			std::chrono::microseconds suite_duration{};
+			for(const auto& [templates, tests] : test_units)
+			{
+				for(const auto& test : tests)
+				{
+					results.emplace_back(test());
+					size_t local_fatal{0};
+					size_t local_fail{0};
+					size_t local_pass{0};
+					std::chrono::microseconds local_duration{};
+					results.back().get_result_values(local_pass, local_fail, local_fatal, local_duration);
+					suite_pass += local_pass;
+					suite_fail += local_fail;
+					suite_fatal += local_fatal;
+					suite_duration += local_duration;
+				}
+			}
+
+			pass += suite_pass;
+			fail += suite_fail;
+			fatal += suite_fatal;
+			duration += suite_duration;
+			auto result		 = std::begin(results);
+			const auto& root = result->root();
+
+			formatter->suite_begin(name, suite_pass, suite_fail, suite_fatal, root.location, suite_duration);
+			for(const auto& [templates, tests] : test_units)
+			{
+				if(!templates.empty()) formatter->suite_iterate_templates(templates);
+				for(auto i = 0u; i < tests.size(); ++i)
+				{
+					result->to_string(formatter);
+					result = std::next(result);
+				}
+			}
+			formatter->suite_end(name, suite_pass, suite_fail, suite_fatal, root.location, suite_duration);
 		}
 	}
 	else
 	{
-		std::vector<std::future<internal::test_result_t>> results{};
-		results.reserve(internal::runner_t::size());
-		for(const auto& test : internal::runner)
-		{
-			results.emplace_back(std::async(test));
-		}
+		// std::vector<std::future<internal::test_result_t>> results{};
+		// results.reserve(internal::runner_t::size());
+		// for(const auto& test : internal::runner)
+		// {
+		// 	results.emplace_back(std::async(test));
+		// }
 
-		while(!results.empty())
-		{
-			for(auto it = std::begin(results); it != std::end(results); ++it)
-			{
-				if(is_ready(*it))
-				{
-					const auto& result = it->get();
-					size_t local_fatal{0};
-					size_t local_fail{0};
-					size_t local_pass{0};
-					result.get_result_values(local_pass, local_fail, local_fatal);
-					pass += local_pass;
-					fail += local_fail;
-					fatal += local_fatal;
-					result.to_string(formatter);
-					results.erase(it);
-					break;
-				}
-			}
-		}
+		// while(!results.empty())
+		// {
+		// 	for(auto it = std::begin(results); it != std::end(results); ++it)
+		// 	{
+		// 		if(is_ready(*it))
+		// 		{
+		// 			const auto& result = it->get();
+		// 			size_t local_fatal{0};
+		// 			size_t local_fail{0};
+		// 			size_t local_pass{0};
+		// 			std::chrono::microseconds local_duration{};
+		// 			result.get_result_values(local_pass, local_fail, local_fatal, local_duration);
+		// 			pass += local_pass;
+		// 			fail += local_fail;
+		// 			fatal += local_fatal;
+		// 			duration += local_duration;
+		// 			result.to_string(formatter);
+		// 			results.erase(it);
+		// 			break;
+		// 		}
+		// 	}
+		// }
 	}
 
-	formatter->write_totals(pass, fail, fatal);
+	formatter->write_totals(pass, fail, fatal, duration);
 	if(local_formatter)
 	{
 		delete(formatter);

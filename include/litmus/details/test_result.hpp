@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstring>
 #include <numeric>
 #include <span>
@@ -87,10 +88,13 @@ namespace litmus
 				std::string name{};
 				std::vector<std::string> parameters{};
 				test_id_t id{};
+				const source_location& location;
 				size_t pass{0};
 				size_t fail{0};
 				size_t fatal{0};
 				size_t children{0};
+				std::chrono::time_point<std::chrono::high_resolution_clock> duration_start{};
+				std::chrono::time_point<std::chrono::high_resolution_clock> duration_end{};
 			};
 
 			struct scope_close_t
@@ -125,11 +129,13 @@ namespace litmus
 				size_t parent_index{};
 			};
 
-			void scope_open(const std::string& name, test_id_t id, std::vector<std::string> parameters = {})
+			void scope_open(const std::string& name, test_id_t id, const source_location& location,
+							std::vector<std::string> parameters = {})
 			{
 				active_scope_index.push(results.size());
-				results.emplace_back(scope_t{name, parameters, id});
-			}
+				results.emplace_back(
+					scope_t{name, parameters, id, location, {}, {}, {}, {}, std::chrono::high_resolution_clock::now()});
+			} // namespace internal
 
 			void scope_results(size_t index, size_t pass, size_t fail, size_t fatal)
 			{
@@ -151,7 +157,8 @@ namespace litmus
 				results.emplace_back(scope_close_t{index});
 				if(auto* scope = std::get_if<scope_t>(&results[index]); scope)
 				{
-					scope->children = results.size() - index - 1;
+					scope->children		= results.size() - index - 1;
+					scope->duration_end = std::chrono::high_resolution_clock::now();
 				}
 				else
 				{
@@ -230,7 +237,7 @@ namespace litmus
 				const auto* suite_scope = std::get_if<scope_t>(&results[0]);
 				if(suite_scope)
 				{
-					logger->suite_begin(*suite_scope, m_Location);
+					if(!suite_scope->parameters.empty()) logger->suite_iterate_parameters(suite_scope->parameters);
 				}
 				else
 					throw std::exception();
@@ -254,17 +261,17 @@ namespace litmus
 						logger->scope_end(*scope);
 					}
 				}
-
-				logger->suite_end(*suite_scope, m_Location);
 			}
 
-			void get_result_values(size_t& pass, size_t& fail, size_t& fatal) const
+			void get_result_values(size_t& pass, size_t& fail, size_t& fatal, std::chrono::microseconds& duration) const
 			{
 				if(const auto* scope = std::get_if<scope_t>(&results[0]); scope)
 				{
-					pass  = scope->pass;
-					fail  = scope->fail;
-					fatal = scope->fatal;
+					pass	 = scope->pass;
+					fail	 = scope->fail;
+					fatal	= scope->fatal;
+					duration = std::chrono::duration_cast<std::chrono::microseconds>(scope->duration_end -
+																					 scope->duration_start);
 				}
 				else
 					throw std::exception();
@@ -272,15 +279,22 @@ namespace litmus
 
 			void clear() { results.clear(); }
 
-			void location(const source_location& location) noexcept { m_Location = location; }
+			auto& root() const
+			{
+				if(const auto* scope = std::get_if<scope_t>(&results[0]); scope)
+				{
+					return *scope;
+				}
+
+				throw std::exception();
+			}
 
 			bool fails{false};
 			bool fatal{false};
 			std::vector<std::variant<scope_t, scope_close_t, expect_t>> results{};
 			std::vector<test_id_t> failed_ids{};
 			std::stack<size_t> active_scope_index{};
-			source_location m_Location;
-		};
+		}; // namespace litmus
 
 		class benchmark_result_t
 		{
