@@ -325,34 +325,45 @@ class stream_formatter final : public litmus::formatter
 		stream.output(pstr);
 	}
 
+	std::string time_to_string(std::chrono::microseconds duration)
+	{
+		std::string time{};
+		using namespace std::literals::chrono_literals;
+		auto seconds	= std::chrono::duration_cast<std::chrono::seconds>(duration);
+		bool in_seconds = duration > 1s;
+		if(in_seconds)
+		{
+			time = std::to_string(seconds.count());
+			duration -= seconds;
+			time += ".";
+		}
+		time = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count());
+		time += (in_seconds) ? "s" : "ms";
+		return time;
+	}
+
 
 	void write_totals(size_t pass, size_t fail, size_t fatal, std::chrono::microseconds duration,
 					  std::chrono::microseconds user_duration) override
 	{
+		std::array<uint8_t, 3> colour_value =
+			((fail == 0 && fatal == 0) ? std::array<uint8_t, 3>{0, 255, 0} : std::array<uint8_t, 3>{255, 0, 0});
 		if(fail == 0 && fatal == 0)
 		{
 			stream.output(colour(
-				bold(combine_text(
-					"\nlitmus detected all ", std::to_string(pass), " tests passed in ",
-					std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() * 0.001),
-					"s (real ",
-					std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(user_duration).count() *
-								   0.001),
-					"s).\n")),
-				0, 255, 0));
+				bold(combine_text("\nlitmus detected all ", std::to_string(pass), " tests passed in ")), colour_value));
 		}
 		else
 		{
-			stream.output(colour(
-				bold(combine_text(
-					"\nlitmus detected ", std::to_string(fail), " fails and ", std::to_string(fatal), " fatals in ",
-					std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() * 0.001),
-					"s (real ",
-					std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(user_duration).count() *
-								   0.001),
-					"s).\n")),
-				255, 0, 0));
+			stream.output(colour(bold(combine_text("\nlitmus detected ", std::to_string(fail), " fails and ",
+												   std::to_string(fatal), " fatals in ")),
+								 colour_value));
 		}
+
+
+		stream.output(
+			colour(bold(combine_text(time_to_string(duration), " (real ", time_to_string(user_duration), ").\n")),
+				   colour_value));
 	}
 
 	constexpr static std::array<std::string_view, 4> outcome{"PASS", "FAIL", "FATAL", "ERROR"};
