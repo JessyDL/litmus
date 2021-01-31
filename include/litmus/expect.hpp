@@ -216,7 +216,7 @@ namespace litmus
 				suite_context.output.fatal = !res && Fatal;
 			}
 			T m_Value;
-			const source_location& m_Source;
+			source_location m_Source;
 		};
 
 		template <bool Fatal, typename Fn, typename... Args>
@@ -330,7 +330,7 @@ namespace litmus
 			}
 			Fn m_Fun;
 			std::tuple<Args...> m_Args;
-			const source_location& m_Source;
+			source_location m_Source;
 		};
 
 		template <typename T, typename Y, typename... Ts>

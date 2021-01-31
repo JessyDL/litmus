@@ -329,16 +329,24 @@ class stream_formatter final : public litmus::formatter
 	{
 		std::string time{};
 		using namespace std::literals::chrono_literals;
-		auto seconds	= std::chrono::duration_cast<std::chrono::seconds>(duration);
+		bool in_mins = duration > 1min;
+		if(in_mins)
+		{
+			auto minutes = std::chrono::duration_cast<std::chrono::minutes>(duration);
+			time		 = std::to_string(minutes.count());
+			duration -= minutes;
+			time += ":";
+		}
 		bool in_seconds = duration > 1s;
 		if(in_seconds)
 		{
-			time = std::to_string(seconds.count());
+			auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+			time		 = std::to_string(seconds.count());
 			duration -= seconds;
-			time += ".";
+			time += ":";
 		}
-		time = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count());
-		time += (in_seconds) ? "s" : "ms";
+		time += std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count());
+		time += (in_mins) ? "m" : (in_seconds) ? "s" : "ms";
 		return time;
 	}
 
