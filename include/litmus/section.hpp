@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <stdexcept>
 #include <tuple>
 #include <litmus/details/fixed_string.hpp>

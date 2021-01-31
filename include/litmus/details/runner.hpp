@@ -18,7 +18,6 @@ namespace litmus
 			{
 				if(m_RefCount == 0)
 				{
-					m_Tests		 = new std::vector<std::function<test_result_t()>>();
 					m_NamedTests = new std::unordered_map<const char*, test_t>();
 				}
 				++m_RefCount;
@@ -28,7 +27,6 @@ namespace litmus
 			{
 				if(--m_RefCount == 0)
 				{
-					delete(m_Tests);
 					delete(m_NamedTests);
 				}
 			}
@@ -47,12 +45,6 @@ namespace litmus
 
 			[[nodiscard]] static auto size() noexcept { return m_NamedTests->size(); }
 
-			// template <typename T>
-			// static void test(T&& arg)
-			// {
-			// 	m_Tests->emplace_back(std::forward<T>(arg));
-			// }
-
 			template <typename T>
 			static void test(const char* name, std::string templates, T&& arg)
 			{
@@ -67,7 +59,6 @@ namespace litmus
 
 		  private:
 			static std::unordered_map<const char*, test_t>* m_NamedTests;
-			static std::vector<std::function<test_result_t()>>* m_Tests;
 			static std::vector<std::function<void()>>* m_Benchmarks;
 			static unsigned m_RefCount;
 		};
