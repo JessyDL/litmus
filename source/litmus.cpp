@@ -193,16 +193,14 @@ class stream_formatter final : public litmus::formatter
 
 		auto lhs = combine_text(std::string((scope.id.size() + extra_depth) * 2, ' '), bold(scope.name),
 								std::move(parameters));
-		auto rhs =
-			duration_str + colour(combine_text('[', pass_str, '/', total_str, ']'), style_colours[style_index][0],
-								  style_colours[style_index][1], style_colours[style_index][2]);
+		auto rhs = duration_str + colour(combine_text('[', pass_str, '/', total_str, ']'), style_colours[style_index]);
 		auto padding		= (scope.id.size() + extra_depth) * 2 + scope.name.size() + param_size;
 		const auto rhs_size = pass_str.size() + total_str.size() + 2 + duration_str.size();
 		padding				= (padding > (120 - rhs_size)) ? 0u : 120 - rhs_size - padding;
 		stream.output(combine_text(std::move(lhs), std::string(padding, ' '), std::move(rhs), '\n'));
 		stream.output(colour(combine_text(std::string((scope.id.size() + extra_depth) * 2, ' '),
 										  std::string(120u - (scope.id.size() + extra_depth) * 2, '-'), '\n'),
-							 "80", "80", "96"));
+							 80, 80, 96));
 	}
 
 	void expect(const test_result_t::expect_t& expect, const test_result_t::scope_t& scope) override
@@ -214,8 +212,8 @@ class stream_formatter final : public litmus::formatter
 
 		if(!expect.info.empty())
 		{
-			stream.output(combine_text(std::string((scope.id.size() + 1u) * 2u + 8u, ' '),
-									   colour(italics(expect.info), "0", "139", "139"), '\n'));
+			stream.output(combine_text(std::string((scope.id.size() + 1u + extra_depth) * 2u + 8u, ' '),
+									   colour(italics(expect.info), 0, 139, 139), '\n'));
 		}
 
 		auto codeblock = [](const auto& expect) -> std::string {
@@ -269,7 +267,7 @@ class stream_formatter final : public litmus::formatter
 			std::string((scope.id.size() + 1 + extra_depth) * 2, ' '),
 			colour(combine_text(outcome[outcome_index],
 								((outcome_index == 2) ? std::string_view("=> ") : std::string_view(" => "))),
-				   style_colours[outcome_index][0], style_colours[outcome_index][1], style_colours[outcome_index][2]),
+				   style_colours[outcome_index]),
 			codeblock, '\n'));
 	}
 
@@ -285,15 +283,14 @@ class stream_formatter final : public litmus::formatter
 
 		size_t outcome_index = (fatal > 0) ? 2 : (fail > 0) ? 1 : (pass > 0) ? 0 : 3;
 		std::string rhs		 = combine_text(
-			 duration_str, colour(combine_text(" [", pass_str, "/", total_str, "]"), style_colours[outcome_index][0],
-								  style_colours[outcome_index][1], style_colours[outcome_index][2]));
+			 duration_str, colour(combine_text(" [", pass_str, "/", total_str, "]"), style_colours[outcome_index]));
 
 
 		stream.output(combine_text(bold(name_str), std::string(120u - name_str.size() - rhs_size, ' '), rhs, '\n'));
 		extra_depth   = 0u;
 		has_templates = false;
 
-		stream.output(colour(combine_text(std::string(120u, '-'), '\n'), "80", "80", "96"));
+		stream.output(colour(combine_text(std::string(120u, '-'), '\n'), 80, 80, 96));
 	}
 
 	void suite_end([[maybe_unused]] const char* name, [[maybe_unused]] size_t pass, size_t fail, size_t fatal,
@@ -305,14 +302,14 @@ class stream_formatter final : public litmus::formatter
 		{
 			stream.output(colour(combine_text("  ", std::to_string(fail), " fails and ", std::to_string(fatal),
 											  " fatals in ", filename, '\n'),
-								 "255", "0", "0"));
+								 255, 0, 0));
 		}
 		stream.output("\n");
 	}
 
 	void suite_iterate_templates(std::string_view templates) override
 	{
-		stream.output(combine_text("  template<", templates, ">\n"));
+		stream.output(combine_text(colour("  template<", 30, 180, 255), templates, colour(">\n", 30, 180, 255)));
 		extra_depth   = 1u;
 		has_templates = true;
 	}
@@ -322,13 +319,15 @@ class stream_formatter final : public litmus::formatter
 		extra_depth = (has_templates) ? 2u : 1u;
 
 		pstr = std::move(join(parameters, ", "));
-		pstr = dim(italics(combine_text(std::string(extra_depth * 2u, ' '), "arguments { ", std::move(pstr), " }\n")));
+		pstr = italics(combine_text(std::string(extra_depth * 2u, ' '), colour("arguments { ", 249, 242, 99),
+									std::move(pstr), colour(" }\n", 249, 242, 99)));
 
 		stream.output(pstr);
 	}
 
 
-	void write_totals(size_t pass, size_t fail, size_t fatal, std::chrono::microseconds duration) override
+	void write_totals(size_t pass, size_t fail, size_t fatal, std::chrono::microseconds duration,
+					  std::chrono::microseconds user_duration) override
 	{
 		if(fail == 0 && fatal == 0)
 		{
@@ -336,8 +335,11 @@ class stream_formatter final : public litmus::formatter
 				bold(combine_text(
 					"\nlitmus detected all ", std::to_string(pass), " tests passed in ",
 					std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() * 0.001),
-					"s.\n")),
-				"0", "255", "0"));
+					"s (real ",
+					std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(user_duration).count() *
+								   0.001),
+					"s).\n")),
+				0, 255, 0));
 		}
 		else
 		{
@@ -345,15 +347,18 @@ class stream_formatter final : public litmus::formatter
 				bold(combine_text(
 					"\nlitmus detected ", std::to_string(fail), " fails and ", std::to_string(fatal), " fatals in ",
 					std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() * 0.001),
-					"s.\n")),
-				"255", "0", "0"));
+					"s (real ",
+					std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(user_duration).count() *
+								   0.001),
+					"s).\n")),
+				255, 0, 0));
 		}
 	}
 
 	constexpr static std::array<std::string_view, 4> outcome{"PASS", "FAIL", "FATAL", "ERROR"};
 
-	constexpr static std::array<std::array<const char*, 3>, 4> style_colours{
-		{{"0", "180", "50"}, {"220", "0", "0"}, {"200", "0", "200"}, {"200", "150", "50"}}};
+	constexpr static std::array<std::array<uint8_t, 3>, 4> style_colours{
+		{{0, 180, 50}, {220, 0, 0}, {200, 0, 200}, {200, 150, 50}}};
 	const out_wrapper_t& stream;
 
 	size_t extra_depth{0u};
@@ -380,6 +385,8 @@ auto litmus::run(int argc, char* argv[], out_wrapper_t stream, formatter* format
 	size_t fail{0};
 	size_t pass{0};
 	std::chrono::microseconds duration{};
+
+	auto real_start			= std::chrono::high_resolution_clock::now();
 	config->single_threaded = true;
 	if(config->single_threaded)
 	{
@@ -461,7 +468,9 @@ auto litmus::run(int argc, char* argv[], out_wrapper_t stream, formatter* format
 		// }
 	}
 
-	formatter->write_totals(pass, fail, fatal, duration);
+	formatter->write_totals(
+		pass, fail, fatal, duration,
+		std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - real_start));
 	if(local_formatter)
 	{
 		delete(formatter);

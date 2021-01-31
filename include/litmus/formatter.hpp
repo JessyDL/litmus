@@ -40,7 +40,8 @@ namespace litmus
 		{}
 
 		virtual void write_totals([[maybe_unused]] size_t pass, [[maybe_unused]] size_t fail,
-								  [[maybe_unused]] size_t fatal, [[maybe_unused]] std::chrono::microseconds duration)
+								  [[maybe_unused]] size_t fatal, [[maybe_unused]] std::chrono::microseconds duration,
+								  [[maybe_unused]] std::chrono::microseconds user_duration)
 		{}
 
 	  private:
