@@ -141,9 +141,11 @@ namespace litmus::formatters
 			output() << ("\n");
 		}
 
-		void suite_iterate_templates(std::string_view templates) override
+		void suite_iterate_templates(const std::vector<std::string>& templates) override
 		{
-			output() << combine_text("  template<", templates, ">\n");
+			std::string pstr{};
+			pstr = std::move(join(templates, ", "));
+			output() << combine_text("  template<", pstr, ">\n");
 			extra_depth   = 1u;
 			has_templates = true;
 		}
@@ -348,9 +350,11 @@ namespace litmus::formatters
 			output() << ("\n");
 		}
 
-		void suite_iterate_templates(std::string_view templates) override
+		void suite_iterate_templates(const std::vector<std::string>& templates) override
 		{
-			output() << (combine_text(colour("  template<", 30, 180, 255), templates, colour(">\n", 30, 180, 255)));
+			std::string pstr{};
+			pstr = std::move(join(templates, ", "));
+			output() << (combine_text(colour("  template<", 30, 180, 255), pstr, colour(">\n", 30, 180, 255)));
 			extra_depth   = 1u;
 			has_templates = true;
 		}

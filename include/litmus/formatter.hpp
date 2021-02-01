@@ -30,8 +30,10 @@ namespace litmus
 							   [[maybe_unused]] std::chrono::microseconds duration)
 		{}
 
-
-		virtual void suite_iterate_templates([[maybe_unused]] std::string_view templates) {}
+		virtual void suite_iterate([[maybe_unused]] const std::vector<std::string>& templates,
+								   [[maybe_unused]] const std::vector<std::string>& parameters)
+		{}
+		virtual void suite_iterate_templates([[maybe_unused]] const std::vector<std::string>& templates) {}
 		virtual void suite_iterate_parameters([[maybe_unused]] const std::vector<std::string>& parameters) {}
 
 		virtual void scope_begin([[maybe_unused]] const test_result_t::scope_t& scope) {}

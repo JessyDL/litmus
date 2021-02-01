@@ -8,80 +8,14 @@
 
 namespace litmus
 {
-	template <typename T>
-	inline auto type_to_name(std::type_identity<T>) -> std::string
-	{
-		return typeid(T).name();
-	}
-
-	template <>
-	inline auto type_to_name(std::type_identity<uint8_t>) -> std::string
-	{
-		return "ui8";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<uint16_t>) -> std::string
-	{
-		return "ui16";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<uint32_t>) -> std::string
-	{
-		return "ui32";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<uint64_t>) -> std::string
-	{
-		return "ui64";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<int8_t>) -> std::string
-	{
-		return "i8";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<int16_t>) -> std::string
-	{
-		return "i16";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<int32_t>) -> std::string
-	{
-		return "i32";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<int64_t>) -> std::string
-	{
-		return "i64";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<float>) -> std::string
-	{
-		return "float";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<double>) -> std::string
-	{
-		return "double";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<bool>) -> std::string
-	{
-		return "bool";
-	}
-
 	template <auto Value>
 	inline auto type_to_name(std::type_identity<vpack_value<Value>>) -> std::string
 	{
 		return std::to_string(Value);
 	}
+
 	inline namespace internal
 	{
-		template <typename T>
-		inline auto type_to_name_internal() -> std::string
-		{
-			return type_to_name(std::type_identity<std::remove_cvref_t<T>>{});
-		}
 		struct suite_functor
 		{
 			static constexpr bool supports_generators = true;
@@ -92,42 +26,35 @@ namespace litmus
 			template <typename... InvokeTypes, typename... Ts>
 			constexpr void operator()(auto& fn, const char* name, const source_location& location, Ts&&... values)
 			{
-				std::string tparam_names{};
-				if constexpr(sizeof...(InvokeTypes) > 0)
-				{
-					tparam_names = ((type_to_name_internal<InvokeTypes>() + ", ") + ...);
-					tparam_names.resize(tparam_names.size() - 2);
-				}
-				runner.test(
-					name, tparam_names, [name = name, values = std::tuple{values...}, fn = fn, location = location]() {
-						suite_context						 = {};
-						static constexpr auto parameter_size = sizeof...(InvokeTypes);
+				runner.template test<InvokeTypes...>(name, [name = name, values = std::tuple{values...}, fn = fn,
+															location = location]() {
+					suite_context						 = {};
+					static constexpr auto parameter_size = sizeof...(InvokeTypes);
 
-						suite_context.output.scope_open(name, {}, location,
-														pack_to_string<std::tuple_size_v<decltype(values)>>(values));
-						test_id_t next_stack{};
-						do
+					suite_context.output.scope_open(name, {}, location,
+													pack_to_string<std::tuple_size_v<decltype(values)>>(values));
+					test_id_t next_stack{};
+					do
+					{
+						suite_context.reset();
+						suite_context.stack = std::move(next_stack);
+						if constexpr(parameter_size > 0)
 						{
-							suite_context.reset();
-							suite_context.stack = std::move(next_stack);
-							if constexpr(parameter_size > 0)
-							{
-								std::apply(
-									[&fn](auto&&... values) { fn.template operator()<InvokeTypes...>(values...); },
-									values);
-							}
-							else
-							{
-								std::apply(fn, values);
-							}
+							std::apply([&fn](auto&&... values) { fn.template operator()<InvokeTypes...>(values...); },
+									   values);
+						}
+						else
+						{
+							std::apply(fn, values);
+						}
 
-							next_stack = std::move(suite_context.stack);
-						} while(!next_stack.empty() && !suite_context.output.fatal);
+						next_stack = std::move(suite_context.stack);
+					} while(!next_stack.empty() && !suite_context.output.fatal);
 
-						suite_context.output.scope_close();
-						suite_context.output.sync();
-						return suite_context.output;
-					});
+					suite_context.output.scope_close();
+					suite_context.output.sync();
+					return suite_context.output;
+				});
 				// runner.test([name = name, values = std::tuple{values...}, fn = fn, location = location]() {
 				// 	suite_context = {};
 

@@ -214,7 +214,7 @@ auto litmus::run(int argc, char* argv[],
 		size_t fatal;
 		std::chrono::microseconds duration;
 		source_location location;
-		std::vector<std::pair<std::string, size_t>> templates{};
+		std::vector<std::pair<std::vector<std::string>, size_t>> templates{};
 		std::vector<test_result_t> results{};
 	};
 
@@ -228,10 +228,10 @@ auto litmus::run(int argc, char* argv[],
 		std::chrono::microseconds local_duration{};
 
 		std::chrono::microseconds suite_duration{};
-		for(const auto& [templates, tests] : test_units)
+		for(const auto& [uid, tests] : test_units)
 		{
-			result.templates.emplace_back(templates, tests.size());
-			for(const auto& test : tests)
+			result.templates.emplace_back(tests.templates, tests.functions.size());
+			for(const auto& test : tests.functions)
 			{
 				result.results.emplace_back(test());
 
@@ -254,6 +254,7 @@ auto litmus::run(int argc, char* argv[],
 			if(!templates.empty()) formatter->suite_iterate_templates(templates);
 			for(auto i = 0u; i < tests_size; ++i)
 			{
+				formatter->suite_iterate(templates, result->root().parameters);
 				result->to_string(formatter);
 				result = std::next(result);
 			}
