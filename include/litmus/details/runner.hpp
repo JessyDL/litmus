@@ -29,7 +29,7 @@ namespace litmus
 		constexpr uuid_t uuid_for()
 		{
 			return uuid<typename std::decay<Ts>::type...>;
-		};
+		}
 
 		struct runner_t
 		{

@@ -150,7 +150,7 @@ namespace litmus::formatters
 												 " fatals in ", filename, '\n'),
 									255, 0, 0));
 			}
-			output() << ("\n");
+			if(log_suite) output() << ("\n");
 			log_suite = false;
 		}
 
