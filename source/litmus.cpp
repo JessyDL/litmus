@@ -24,6 +24,7 @@ thread_local litmus::internal::suite_context_t litmus::internal::suite_context		
 
 #include <litmus/formatter/detailed.hpp>
 #include <litmus/formatter/json.hpp>
+#include <litmus/formatter/compact.hpp>
 
 std::string output_file = "";
 
@@ -107,10 +108,14 @@ void configure(std::span<const std::string_view> args)
 			 if(args[0] == "json")
 			 {
 				 default_formatter = std::make_unique<formatters::json>();
-			 };
-			 if(args[0] == "detailed-plaintext")
+			 }
+			 else if(args[0] == "detailed-plaintext")
 			 {
 				 default_formatter = std::make_unique<formatters::detailed_stream_formatter_no_color>();
+			 }
+			 else if(args[0] == "compact")
+			 {
+				 default_formatter = std::make_unique<formatters::compact>();
 			 }
 		 },
 		 1, 0},
