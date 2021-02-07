@@ -52,53 +52,80 @@ namespace litmus
 		};
 	} // namespace internal
 
+	template <typename T>
+	struct value_to_string_t
+	{
+		constexpr std::string operator()(const T& value) const noexcept
+		{
+			using std::to_string;
+			return to_string(value);
+		}
+	};
+
+
+	auto value_to_string(const auto& value) -> std::string
+	{
+		return value_to_string_t<std::remove_cvref_t<decltype(value)>>{}(value);
+	}
+
+	template <typename... Ts>
+	struct value_to_string_t<throws_t<Ts...>>
+	{
+		using type = throws_t<Ts...>;
+		constexpr std::string operator()([[maybe_unused]] const type& value) const noexcept
+		{
+			std::string res{"throws<"};
+			if constexpr(sizeof...(Ts) > 0)
+			{
+				res += ((type_to_name(std::type_identity<Ts>{}) + ", ") + ...);
+				res.erase(res.size() - 1);
+				res.back() = '>';
+			}
+			else
+			{
+				res += "std::exception>";
+			}
+			return res;
+		}
+	};
+
 	inline namespace internal
 	{
 		template <typename T>
 		concept IsStringifyable = requires(const T& val)
 		{
 			{
-				std::to_string(val)
+				value_to_string(val)
 			}
 			->std::same_as<std::string>;
 		};
-		auto to_string(const auto& val) noexcept -> std::string
+		auto to_string_fn(const auto& val) noexcept -> std::string
 		{
-			using T = typename std::decay<decltype(val)>::type;
+			using T = std::remove_cvref_t<typename std::decay<decltype(val)>::type>;
 			if constexpr(std::is_same_v<T, bool>)
 			{
 				return (val) ? "true" : "false";
 			}
-
-			if constexpr(std::is_same_v<T, throws_result_t>)
+			else if constexpr(std::is_same_v<T, throws_result_t>)
 			{
 				return ((val == true) ? std::string("EXCEPT") : std::string("NOEXCEPT")) +
 					   ((val.what.empty()) ? "" : ": ") + val.what;
 			}
-			std::string res;
-			if constexpr(IsStringifyable<T>) res = std::to_string(val);
+			else if constexpr(IsStringifyable<T>)
+			{
+				std::string res = value_to_string(val);
 
-			if constexpr(std::is_integral_v<T> && std::is_unsigned_v<T>)
-			{
-				return res + "u";
+				if constexpr(std::is_integral_v<T> && std::is_unsigned_v<T>)
+				{
+					return res + "u";
+				}
+				return res;
 			}
-			return res;
-		}
-		auto to_string(const auto& val, auto& user_string) noexcept -> std::string
-		{
-			using T = typename std::decay<decltype(val)>::type;
-			std::string res;
-			if constexpr(IsStringifyable<T>) res = std::to_string(val);
-			if constexpr(std::is_integral_v<T> && std::is_unsigned_v<T>)
+			else
 			{
-				if(user_string.size() == res.size() + 1 && user_string[user_string.size() - 1] == 'u')
-					user_string.erase(user_string.size() - 1);
+				static_assert(!std::is_same_v<T, T>, "type cannot be converted to a string");
 			}
-			if constexpr(std::is_same_v<T, bool>)
-			{
-				res = (val) ? "true" : "false";
-			}
-			return res;
+			return "";
 		}
 
 		template <typename Ex, typename... ExRemainder>
@@ -210,8 +237,8 @@ namespace litmus
 				std::string lhs_user{};
 				std::string rhs_user{};
 				evaluate(m_Source, operation, (Fatal) ? "require" : "expect", lhs_user, rhs_user);
-				suite_context.output.expect_result(to_string(m_Value), to_string(rhs), lhs_user, rhs_user, operation,
-												   res, Fatal, expect_info.message);
+				suite_context.output.expect_result(to_string_fn(m_Value), to_string_fn(rhs), lhs_user, rhs_user,
+												   operation, res, Fatal, expect_info.message);
 				expect_info.message		   = {};
 				suite_context.output.fatal = !res && Fatal;
 			}
@@ -322,8 +349,8 @@ namespace litmus
 				std::string lhs_user{};
 				std::string rhs_user{};
 				evaluate(m_Source, operation, (Fatal) ? "require" : "expect", lhs_user, rhs_user);
-				suite_context.output.expect_result(to_string(lhs), to_string(rhs), lhs_user, rhs_user, operation, res,
-												   Fatal, expect_info.message);
+				suite_context.output.expect_result(to_string_fn(lhs), to_string_fn(rhs), lhs_user, rhs_user, operation,
+												   res, Fatal, expect_info.message);
 				expect_info.message = {};
 
 				suite_context.output.fatal = !res && Fatal;
@@ -369,25 +396,11 @@ namespace litmus
 	template <typename T, typename... Ts>
 	require(T&&, Ts&&...)->require<T, Ts...>;
 
-	inline namespace internal
-	{
-		template <typename T>
-		inline auto internal_to_string(const T& value) -> std::string
-		{
-			return std::to_string(value);
-		}
-
-		inline auto internal_to_string(const std::string& value) -> const std::string& { return value; }
-
-		inline auto internal_to_string(const char* value) -> std::string_view { return value; }
-	} // namespace internal
-
-
-	template <typename... Ts>
+	template <IsStringifyable... Ts>
 	void info(Ts&&... values)
 	{
 		if(suite_context.output.fatal > 0) return;
-		expect_info.message = std::move(combine_text(internal_to_string(std::forward<Ts>(values))...));
+		expect_info.message = std::move(combine_text(value_to_string(std::forward<Ts>(values))...));
 	}
 
 	template <typename... Ts>
@@ -398,4 +411,6 @@ namespace litmus
 	}
 
 	[[nodiscard]] constexpr auto nothrows() noexcept -> nothrows_t { return {}; }
+
+
 } // namespace litmus
