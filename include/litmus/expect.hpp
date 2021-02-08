@@ -392,6 +392,40 @@ namespace litmus
 	expect(T&&, Ts&&...)->expect<T, Ts...>;
 
 	template <typename T, typename... Ts>
+	struct expect_true : public expect<T, Ts...>
+	{
+		using base = expect<T, Ts...>;
+		expect_true(T&& t, Ts&&... ts, const source_location& loc = source_location::current())
+			: base(std::forward<T>(t), std::forward<Ts>(ts)..., loc), m_Result(base::operator==(true))
+		{}
+
+		constexpr operator bool() const noexcept { return m_Result; }
+
+	  private:
+		const bool m_Result{};
+	};
+
+	template <typename T, typename... Ts>
+	expect_true(T&&, Ts&&...)->expect_true<T, Ts...>;
+
+	template <typename T, typename... Ts>
+	struct expect_false : public expect<T, Ts...>
+	{
+		using base = expect<T, Ts...>;
+		expect_false(T&& t, Ts&&... ts, const source_location& loc = source_location::current())
+			: base(std::forward<T>(t), std::forward<Ts>(ts)..., loc), m_Result(base::operator==(false))
+		{}
+
+		constexpr operator bool() const noexcept { return m_Result; }
+
+	  private:
+		const bool m_Result{};
+	};
+
+	template <typename T, typename... Ts>
+	expect_false(T&&, Ts&&...)->expect_false<T, Ts...>;
+
+	template <typename T, typename... Ts>
 	struct require : public std::conditional_t<std::is_invocable_v<T, Ts...>, expect_invocable_t<true, T, Ts...>,
 											   expect_t<true, T>>
 	{
@@ -404,6 +438,41 @@ namespace litmus
 
 	template <typename T, typename... Ts>
 	require(T&&, Ts&&...)->require<T, Ts...>;
+
+	template <typename T, typename... Ts>
+	struct require_true : public require<T, Ts...>
+	{
+		using base = require<T, Ts...>;
+		require_true(T&& t, Ts&&... ts, const source_location& loc = source_location::current())
+			: base(std::forward<T>(t), std::forward<Ts>(ts)..., loc), m_Result(base::operator==(true))
+		{}
+
+		constexpr operator bool() const noexcept { return m_Result; }
+
+	  private:
+		const bool m_Result{};
+	};
+
+	template <typename T, typename... Ts>
+	require_true(T&&, Ts&&...)->require_true<T, Ts...>;
+
+	template <typename T, typename... Ts>
+	struct require_false : public require<T, Ts...>
+	{
+		using base = require<T, Ts...>;
+		require_false(T&& t, Ts&&... ts, const source_location& loc = source_location::current())
+			: base(std::forward<T>(t), std::forward<Ts>(ts)..., loc), m_Result(base::operator==(false))
+		{}
+
+		constexpr operator bool() const noexcept { return m_Result; }
+
+	  private:
+		const bool m_Result{};
+	};
+
+	template <typename T, typename... Ts>
+	require_false(T&&, Ts&&...)->require_false<T, Ts...>;
+
 
 	template <IsStringifyable... Ts>
 	void info(Ts&&... values)
