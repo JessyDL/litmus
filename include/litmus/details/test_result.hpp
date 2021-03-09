@@ -114,8 +114,8 @@ namespace litmus
 					equal,		   // ==
 					inequal,	   // !=
 					greater_equal, // >=
-					less_equal,	// <=
-					less_than,	 // <
+					less_equal,	   // <=
+					less_than,	   // <
 					greater_than,  // >
 				} operation{};
 				std::string info{};
@@ -141,8 +141,8 @@ namespace litmus
 			{
 				if(auto* scope = std::get_if<scope_t>(&results[index]); scope)
 				{
-					scope->pass  = pass;
-					scope->fail  = fail;
+					scope->pass	 = pass;
+					scope->fail	 = fail;
 					scope->fatal = fatal;
 				}
 				else
@@ -269,7 +269,7 @@ namespace litmus
 				{
 					pass	 = scope->pass;
 					fail	 = scope->fail;
-					fatal	= scope->fatal;
+					fatal	 = scope->fatal;
 					duration = std::chrono::duration_cast<std::chrono::microseconds>(scope->duration_end -
 																					 scope->duration_start);
 				}

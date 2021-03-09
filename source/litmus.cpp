@@ -150,7 +150,11 @@ void configure(std::span<const std::string_view> args)
 		control = index;
 	}
 
+#ifdef LITMUS_NO_SOURCE
+	if(!config->no_source)
+#else
 	if(!config->no_source && strlen(source_location::current().file_name()) == 0)
+#endif
 	{
 		config->no_source = true;
 		std::cout << "turning off source expansion, binary was compiled with a compiler that has an incomplete "

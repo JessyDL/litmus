@@ -37,10 +37,11 @@ namespace litmus::formatters
 			auto padding		= (scope.id.size() + extra_depth) * 2 + scope.name.size() + param_size;
 			const auto rhs_size = pass_str.size() + total_str.size() + 2 + duration_str.size();
 			padding				= (padding > (120 - rhs_size)) ? 0u : 120 - rhs_size - padding;
-			output() << (combine_text(std::move(lhs), std::string(padding, ' '), std::move(rhs), '\n'));
+			output() << (combine_text(std::move(lhs), std::string(padding, ' '), std::move(rhs), "\n"));
 			output() << (colour(combine_text(std::string((scope.id.size() + extra_depth) * 2, ' '),
-											 std::string(120u - (scope.id.size() + extra_depth) * 2, '-'), '\n'),
+											 std::string(120u - (scope.id.size() + extra_depth) * 2, '-')),
 								80, 80, 96));
+			output() << "\n";
 		}
 
 		void scope_end([[maybe_unused]] const test_result_t::scope_t& scope) override { log_scope = false; }
@@ -57,7 +58,7 @@ namespace litmus::formatters
 			if(!expect.info.empty())
 			{
 				output() << (combine_text(std::string((scope.id.size() + 1u + extra_depth) * 2u + 8u, ' '),
-										  colour(italics(expect.info), 0, 139, 139), '\n'));
+										  colour(italics(expect.info), 0, 139, 139), "\n"));
 			}
 
 			auto codeblock = [](const auto& expect) -> std::string {
@@ -112,7 +113,8 @@ namespace litmus::formatters
 				colour(combine_text(outcome[outcome_index],
 									((outcome_index == 2) ? std::string_view("=> ") : std::string_view(" => "))),
 					   style_colours[outcome_index]),
-				codeblock, '\n'));
+									  codeblock),
+						 "\n");
 		}
 
 		void suite_begin(const char* name, size_t pass, size_t fail, size_t fatal,
@@ -130,11 +132,12 @@ namespace litmus::formatters
 				 duration_str, colour(combine_text(" [", pass_str, "/", total_str, "]"), style_colours[outcome_index]));
 
 
-			output() << (combine_text(bold(name_str), std::string(120u - name_str.size() - rhs_size, ' '), rhs, '\n'));
+			output() << (combine_text(bold(name_str), std::string(120u - name_str.size() - rhs_size, ' '), rhs, "\n"));
 			extra_depth   = 0u;
 			has_templates = false;
 
-			output() << (colour(combine_text(std::string(120u, '-'), '\n'), 80, 80, 96));
+			output() << (combine_text(colour(std::string(120u, '-'), 80, 80, 96)));
+			output() << "\n";
 
 			log_suite = fail > 0 || fatal > 0;
 		}
@@ -147,8 +150,9 @@ namespace litmus::formatters
 			if(fail != 0 || fatal != 0)
 			{
 				output() << (colour(combine_text("  ", std::to_string(fail), " fails and ", std::to_string(fatal),
-												 " fatals in ", filename, '\n'),
+												 " fatals in ", filename),
 									255, 0, 0));
+				output() << "\n";
 			}
 			if(log_suite) output() << ("\n");
 			log_suite = false;
@@ -159,7 +163,8 @@ namespace litmus::formatters
 			if(!log_suite) return;
 			std::string pstr{};
 			pstr = std::move(join(templates, ", "));
-			output() << (combine_text(colour("  template<", 30, 180, 255), pstr, colour(">\n", 30, 180, 255)));
+			output() << (combine_text(colour("  template<", 30, 180, 255), pstr, colour(">", 30, 180, 255)));
+			output() << "\n";
 			extra_depth   = 1u;
 			has_templates = true;
 		}
@@ -171,7 +176,8 @@ namespace litmus::formatters
 
 			pstr = std::move(join(parameters, ", "));
 			pstr = italics(combine_text(std::string(extra_depth * 2u, ' '), colour("arguments { ", 249, 242, 99),
-										std::move(pstr), colour(" }\n", 249, 242, 99)));
+										std::move(pstr), colour(" }", 249, 242, 99)));
+			output() << "\n";
 
 			output() << (pstr);
 		}

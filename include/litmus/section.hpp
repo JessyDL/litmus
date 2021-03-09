@@ -19,7 +19,7 @@ namespace litmus
 						"reached maximum indices available for tests, please increase 'LITMUS_MAX_TEST_ID_TYPE' to a "
 						"larger type");
 				m_Depth = suite_context.depth;
-				m_Index = suite_context.index;
+				m_Index = static_cast<LITMUS_MAX_TEST_ID_TYPE>(suite_context.index);
 				suite_context.index += 1;
 			}
 

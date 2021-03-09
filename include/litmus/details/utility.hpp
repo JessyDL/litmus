@@ -101,7 +101,7 @@ namespace litmus
 		}
 
 		template <size_t N>
-		inline auto text_size(const char (&)[N]) noexcept -> size_t
+		inline auto text_size([[maybe_unused]] const char (&str)[N]) noexcept -> size_t
 		{
 			return N - 1;
 		}

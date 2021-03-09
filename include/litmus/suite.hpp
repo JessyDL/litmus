@@ -55,48 +55,9 @@ namespace litmus
 					suite_context.output.sync();
 					return suite_context.output;
 				});
-				// runner.test([name = name, values = std::tuple{values...}, fn = fn, location = location]() {
-				// 	suite_context = {};
-
-				// 	std::string fullname{name};
-
-				// 	static constexpr auto parameter_size = sizeof...(InvokeTypes);
-
-				// 	if constexpr(parameter_size > 0)
-				// 	{
-				// 		fullname += "<";
-				// 		fullname += ((type_to_name_internal<InvokeTypes>() + ", ") + ...);
-				// 		fullname.erase(fullname.size() - 1);
-				// 		fullname.back() = '>';
-				// 	}
-				// 	suite_context.output.scope_open(fullname, {},
-				// 									pack_to_string<std::tuple_size_v<decltype(values)>>(values));
-				// 	test_id_t next_stack{};
-				// 	do
-				// 	{
-				// 		suite_context.reset();
-				// 		suite_context.stack = std::move(next_stack);
-				// 		if constexpr(parameter_size > 0)
-				// 		{
-				// 			std::apply([&fn](auto&&... values) { fn.template operator()<InvokeTypes...>(values...); },
-				// 					   values);
-				// 		}
-				// 		else
-				// 		{
-				// 			std::apply(fn, values);
-				// 		}
-
-				// 		next_stack = std::move(suite_context.stack);
-				// 	} while(!next_stack.empty() && !suite_context.output.fatal);
-
-				// 	suite_context.output.scope_close();
-				// 	suite_context.output.location(location);
-				// 	suite_context.output.sync();
-				// 	return suite_context.output;
-				// });
 			}
-		}; // namespace internal
-	}	  // namespace internal
+		};
+	} // namespace internal
 	template <fixed_string Name, fixed_string... Categories>
 	[[nodiscard]] constexpr auto suite(const source_location& location = source_location::current())
 	{

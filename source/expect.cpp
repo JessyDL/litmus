@@ -44,7 +44,7 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 			}
 			offset = 0u;
 		}
-		return -1u;
+		return std::numeric_limits<size_t>::max();
 	};
 
 	auto operation_to_string = [](auto operation) -> std::string_view {
@@ -70,7 +70,7 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 
 	const auto& file = cache.get(config->source + source.file_name());
 
-	auto it = std::next(std::begin(file), source.line() - 1);
+	auto it = std::next(file.begin(), source.line() - 1);
 
 	// parse line for expect;
 	auto expect = it->rfind(keyword, source.column());
@@ -81,7 +81,7 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 	}
 	// if expect still isn't known, we are guaranteed to be within a scope, so we need to rfind every previous line
 	// for a potential expect.
-	while(expect == std::string::npos && --it != std::begin(file))
+	while(expect == std::string::npos && --it != file.begin())
 	{
 		expect = it->rfind(keyword);
 	}
@@ -90,7 +90,7 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 	except(expect == std::string::npos,
 		   std::runtime_error("could not find the start of the lhs_user '" + std::string(keyword) + "' clause."));
 
-	const auto lhs_user_begin   = expect + keyword.size();
+	const auto lhs_user_begin	= expect + keyword.size();
 	auto lhs_user_begin_ptr		= &((*it)[lhs_user_begin + 1]);
 	const auto lhs_user_end		= get_end_of_scope(std::end(file), it, lhs_user_begin);
 	const auto lhs_user_end_ptr = &((*it)[lhs_user_end]);
@@ -114,7 +114,7 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 		lhs_user.erase(std::remove(lhs_user.begin(), lhs_user.end(), '\t'), lhs_user.end());
 	}
 
-	const auto& op_str   = operation_to_string(operation);
+	const auto& op_str	 = operation_to_string(operation);
 	auto operation_begin = it->find(op_str, lhs_user_end + 1);
 	while(operation_begin == std::string::npos && ++it != std::end(file))
 	{
@@ -134,7 +134,7 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 
 	const auto rhs_user_begin_ptr = &((*it)[rhs_user_begin]);
 	const auto rhs_user_end		  = get_end_of_scope(std::end(file), it, rhs_user_begin, 1u, ';');
-	const auto rhs_user_end_ptr   = &((*it)[rhs_user_end]);
+	const auto rhs_user_end_ptr	  = &((*it)[rhs_user_end]);
 
 	const auto rhs_ptr_diff = rhs_user_end_ptr - rhs_user_begin_ptr;
 	except(rhs_ptr_diff < 0, std::runtime_error("rhs_user user clause has a detection error."));
