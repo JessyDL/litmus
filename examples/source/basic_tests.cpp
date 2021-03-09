@@ -80,8 +80,8 @@ auto fixture_test = suite<"vector", "cat1", "cat3">(5) = [](int value) {
 		   has_ran) == true;
 	expect(&type::size, &vec) == ((has_ran) ? 1u : 0u);
 
-	expect([&] { vec.size(); }) == nothrows();
-	expect([&] { vec.at(-1u); }) == throws<std::range_error>();
+	expect([&] { std::ignore = vec.size(); }) == nothrows();
+	expect([&] { std::ignore = vec.at(std::numeric_limits<size_t>::max()); }) == throws<std::range_error>();
 
 	expect(
 		[&vec](int value) {
