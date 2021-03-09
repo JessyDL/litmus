@@ -80,7 +80,7 @@ if(develop_mode)
 	# so warn of throws in noexcept marked functions.
 
 	target_compile_options(${LOCAL_PROJECT} PUBLIC 
-		$<$<CXX_COMPILER_ID:MSVC>:/permissive- /W4>
+		$<$<CXX_COMPILER_ID:MSVC>:/permissive->
 		$<$<AND:$<CXX_COMPILER_ID:MSVC>,$<CONFIG:Release>>:/WX>
 		$<$<CXX_COMPILER_ID:CLANG>:-Wall -Wextra -pedantic -Wno-unknown-pragmas>
 		$<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -pedantic -Wno-unknown-pragmas -g>
