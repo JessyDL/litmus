@@ -27,6 +27,21 @@ namespace litmus
 		struct nothrows_t
 		{};
 
+		template <typename T>
+		struct is_throwable : std::false_type
+		{};
+
+		template <typename... Ts>
+		struct is_throwable<throws_t<Ts...>> : std::true_type
+		{};
+
+		template <>
+		struct is_throwable<nothrows_t> : std::true_type
+		{};
+
+		template <typename T>
+		concept IsThrowable = is_throwable<std::remove_cvref_t<T>>::value;
+
 		struct throws_result_t
 		{
 			constexpr throws_result_t() noexcept = default;
@@ -188,6 +203,21 @@ namespace litmus
 			std::string message;
 		} expect_info;
 
+		template <bool Fatal>
+		constexpr inline void log_expect(const auto& lhs, const auto& rhs, bool res,
+										 test_result_t::expect_t::operation_t operation,
+										 const source_location& location) noexcept
+		{
+			std::string lhs_user{};
+			std::string rhs_user{};
+			evaluate(location, operation, (Fatal) ? "require" : "expect", lhs_user, rhs_user);
+			suite_context.output.expect_result(to_string_fn(lhs), to_string_fn(rhs), lhs_user, rhs_user, operation, res,
+											   Fatal, expect_info.message);
+			expect_info.message = {};
+
+			suite_context.output.fatal = !res && Fatal;
+		}
+
 		template <bool Fatal, typename T>
 		class expect_t
 		{
@@ -200,57 +230,47 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value == rhs};
-				log(rhs, res, test_result_t::expect_t::operation_t::equal);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
 			auto operator!=(const auto& rhs) const noexcept -> bool
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value != rhs};
-				log(rhs, res, test_result_t::expect_t::operation_t::inequal);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::inequal, m_Source);
 				return res;
 			}
 			auto operator<(const auto& rhs) const noexcept -> bool
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value < rhs};
-				log(rhs, res, test_result_t::expect_t::operation_t::less_than);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::less_than, m_Source);
 				return res;
 			}
 			auto operator>(const auto& rhs) const noexcept -> bool
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value > rhs};
-				log(rhs, res, test_result_t::expect_t::operation_t::greater_than);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::greater_than, m_Source);
 				return res;
 			}
 			auto operator<=(const auto& rhs) const noexcept -> bool
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value <= rhs};
-				log(rhs, res, test_result_t::expect_t::operation_t::less_equal);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::less_equal, m_Source);
 				return res;
 			}
 			auto operator>=(const auto& rhs) const noexcept -> bool
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value >= rhs};
-				log(rhs, res, test_result_t::expect_t::operation_t::greater_equal);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::greater_equal, m_Source);
 				return res;
 			}
 
 
 		  private:
-			void log(const auto& rhs, bool res, test_result_t::expect_t::operation_t operation) const noexcept
-			{
-				std::string lhs_user{};
-				std::string rhs_user{};
-				evaluate(m_Source, operation, (Fatal) ? "require" : "expect", lhs_user, rhs_user);
-				suite_context.output.expect_result(to_string_fn(m_Value), to_string_fn(rhs), lhs_user, rhs_user,
-												   operation, res, Fatal, expect_info.message);
-				expect_info.message		   = {};
-				suite_context.output.fatal = !res && Fatal;
-			}
 			T m_Value;
 			source_location m_Source;
 		};
@@ -264,29 +284,13 @@ namespace litmus
 				: m_Fun(fun), m_Args(std::forward<ArgsFw>(args)...), m_Source(source)
 			{}
 
-			auto operator==(const auto& rhs) const noexcept -> bool
-			{
-				if(suite_context.output.fatal) return false;
-				const auto value = std::apply(m_Fun, m_Args);
-				const bool res{value == rhs};
-				log(value, rhs, res, test_result_t::expect_t::operation_t::equal);
-				return res;
-			}
-			auto operator!=(const auto& rhs) const noexcept -> bool
-			{
-				if(suite_context.output.fatal) return false;
-				const auto value = std::apply(m_Fun, m_Args);
-				const bool res{value != rhs};
-				log(value, rhs, res, test_result_t::expect_t::operation_t::inequal);
-				return res;
-			}
 			auto operator==(const nothrows_t& rhs) const noexcept -> bool
 			{
 				if(suite_context.output.fatal) return false;
 				const auto value =
 					std::apply([& fun = m_Fun](auto&... args) { return throws_fn<>(fun, args...); }, m_Args);
 				const bool res{value == rhs};
-				log(value, rhs, res, test_result_t::expect_t::operation_t::equal);
+				log_expect<Fatal>(value, "nothrows", res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
 			auto operator!=(const nothrows_t& rhs) const noexcept -> bool
@@ -295,7 +299,7 @@ namespace litmus
 				const auto value =
 					std::apply([& fun = m_Fun](auto&... args) { return throws_fn<>(fun, args...); }, m_Args);
 				const bool res{value != rhs};
-				log(value, rhs, res, test_result_t::expect_t::operation_t::equal);
+				log_expect<Fatal>(value, "nothrows", res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
 			template <typename... Exceptions>
@@ -305,9 +309,10 @@ namespace litmus
 				const auto value = std::apply(
 					[& fun = m_Fun](auto&... args) { return throws_fn<Exceptions...>(fun, args...); }, m_Args);
 				const bool res{value == rhs};
-				log(value, rhs, res, test_result_t::expect_t::operation_t::equal);
+				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
+
 			template <typename... Exceptions>
 			auto operator!=(const throws_t<Exceptions...>& rhs) const noexcept -> bool
 			{
@@ -315,15 +320,33 @@ namespace litmus
 				const auto value = std::apply(
 					[& fun = m_Fun](auto&... args) { return throws_fn<Exceptions...>(fun, args...); }, m_Args);
 				const bool res{value != rhs};
-				log(value, rhs, res, test_result_t::expect_t::operation_t::equal);
+				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
+
+			auto operator==(const auto& rhs) const noexcept -> bool requires(!IsThrowable<decltype(rhs)>)
+			{
+				if(suite_context.output.fatal) return false;
+				const auto value = std::apply(m_Fun, m_Args);
+				const bool res{value == rhs};
+				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::equal, m_Source);
+				return res;
+			}
+			auto operator!=(const auto& rhs) const noexcept -> bool requires(!IsThrowable<decltype(rhs)>)
+			{
+				if(suite_context.output.fatal) return false;
+				const auto value = std::apply(m_Fun, m_Args);
+				const bool res{value != rhs};
+				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::inequal, m_Source);
+				return res;
+			}
+
 			auto operator<(const auto& rhs) const noexcept -> bool
 			{
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value < rhs};
-				log(value, rhs, res, test_result_t::expect_t::operation_t::less_than);
+				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::less_than, m_Source);
 				return res;
 			}
 			auto operator>(const auto& rhs) const noexcept -> bool
@@ -331,7 +354,7 @@ namespace litmus
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value > rhs};
-				log(value, rhs, res, test_result_t::expect_t::operation_t::greater_than);
+				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::greater_than, m_Source);
 				return res;
 			}
 			auto operator<=(const auto& rhs) const noexcept -> bool
@@ -339,7 +362,7 @@ namespace litmus
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value <= rhs};
-				log(value, rhs, res, test_result_t::expect_t::operation_t::less_equal);
+				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::less_equal, m_Source);
 				return res;
 			}
 			auto operator>=(const auto& rhs) const noexcept -> bool
@@ -347,23 +370,11 @@ namespace litmus
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value >= rhs};
-				log(value, rhs, res, test_result_t::expect_t::operation_t::greater_equal);
+				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::greater_equal, m_Source);
 				return res;
 			}
 
 		  private:
-			void log(const auto& lhs, const auto& rhs, bool res, test_result_t::expect_t::operation_t operation) const
-				noexcept
-			{
-				std::string lhs_user{};
-				std::string rhs_user{};
-				evaluate(m_Source, operation, (Fatal) ? "require" : "expect", lhs_user, rhs_user);
-				suite_context.output.expect_result(to_string_fn(lhs), to_string_fn(rhs), lhs_user, rhs_user, operation,
-												   res, Fatal, expect_info.message);
-				expect_info.message = {};
-
-				suite_context.output.fatal = !res && Fatal;
-			}
 			Fn m_Fun;
 			std::tuple<Args...> m_Args;
 			source_location m_Source;
@@ -477,7 +488,7 @@ namespace litmus
 	template <IsStringifyable... Ts>
 	void info(Ts&&... values)
 	{
-		if(suite_context.output.fatal > 0) return;
+		if(suite_context.output.fatal) return;
 		expect_info.message = std::move(combine_text(value_to_string(std::forward<Ts>(values))...));
 	}
 
