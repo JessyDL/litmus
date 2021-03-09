@@ -8,8 +8,6 @@
 
 #include <litmus/details/verbosity.hpp>
 
-#include <iostream>
-#include <sstream>
 
 namespace litmus
 {
@@ -60,21 +58,10 @@ namespace litmus
 		};
 
 		config_t const config;
-
-		class out_wrapper_t
-		{
-		  public:
-			template <typename T>
-			out_wrapper_t(T& stream)
-				: output([str = std::ref(stream)](const std::string& data) mutable { str.get() << data; })
-			{}
-
-			std::function<void(const std::string&)> output;
-		};
 	} // namespace internal
 
 	// NOLINTNEXTLINE
-	auto run(int argc, char* argv[], out_wrapper_t stream = std::cout, formatter* formatter = nullptr) noexcept -> int;
+	auto run(int argc, char* argv[], formatter* formatter = nullptr) noexcept -> int;
 } // namespace litmus
 
 

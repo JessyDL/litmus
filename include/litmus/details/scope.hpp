@@ -5,7 +5,6 @@
 #include <tuple>
 
 #include <litmus/details/context.hpp>
-#include <litmus/details/runner.hpp>
 #include <litmus/details/source_location.hpp>
 
 namespace litmus

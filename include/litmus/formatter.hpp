@@ -1,5 +1,6 @@
 #pragma once
-
+#include <chrono>
+#include <ostream>
 #include <litmus/details/source_location.hpp>
 #include <litmus/details/test_result.hpp>
 
@@ -14,16 +15,26 @@ namespace litmus
 		formatter(formatter&&)		= default;
 
 		auto operator=(const formatter&) -> formatter& = default;
-		auto operator=(formatter&&) -> formatter& = default;
+		auto operator=(formatter &&) -> formatter& = default;
 
-		virtual void suite_begin(const test_result_t::scope_t& scope, [[maybe_unused]] const source_location& location)
-		{
-			scope_begin(scope);
-		}
-		virtual void suite_end(const test_result_t::scope_t& scope, [[maybe_unused]] const source_location& location)
-		{
-			scope_end(scope);
-		}
+		virtual void begin(size_t){};
+
+		virtual void suite_begin([[maybe_unused]] const char* name, [[maybe_unused]] size_t pass,
+								 [[maybe_unused]] size_t fail, [[maybe_unused]] size_t fatal,
+								 [[maybe_unused]] const source_location& location,
+								 [[maybe_unused]] std::chrono::microseconds duration)
+		{}
+		virtual void suite_end([[maybe_unused]] const char* name, [[maybe_unused]] size_t pass,
+							   [[maybe_unused]] size_t fail, [[maybe_unused]] size_t fatal,
+							   [[maybe_unused]] const source_location& location,
+							   [[maybe_unused]] std::chrono::microseconds duration)
+		{}
+
+		virtual void suite_iterate([[maybe_unused]] const std::vector<std::string>& templates,
+								   [[maybe_unused]] const std::vector<std::string>& parameters)
+		{}
+		virtual void suite_iterate_templates([[maybe_unused]] const std::vector<std::string>& templates) {}
+		virtual void suite_iterate_parameters([[maybe_unused]] const std::vector<std::string>& parameters) {}
 
 		virtual void scope_begin([[maybe_unused]] const test_result_t::scope_t& scope) {}
 
@@ -34,9 +45,23 @@ namespace litmus
 		{}
 
 		virtual void write_totals([[maybe_unused]] size_t pass, [[maybe_unused]] size_t fail,
-								  [[maybe_unused]] size_t fatal)
+								  [[maybe_unused]] size_t fatal, [[maybe_unused]] std::chrono::microseconds duration,
+								  [[maybe_unused]] std::chrono::microseconds user_duration)
 		{}
+		virtual void end(){};
+		void set_stream(std::ostream& stream, bool is_console)
+		{
+			m_Output	= &stream;
+			m_IsConsole = is_console;
+		}
 
-	  private:
+		void flush() { output() << std::flush; }
+
+	  protected:
+		std::ostream& output() { return *m_Output; }
+		bool is_console() const noexcept { return m_IsConsole; }
+
+		std::ostream* m_Output;
+		bool m_IsConsole{true};
 	};
 } // namespace litmus

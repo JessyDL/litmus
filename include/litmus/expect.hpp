@@ -50,7 +50,53 @@ namespace litmus
 			bool result{false};
 			std::string what{};
 		};
+
+		template <typename T>
+		concept IsStringType = requires(T t)
+		{
+			static_cast<std::string>(t);
+		};
 	} // namespace internal
+
+	template <typename T>
+	struct value_to_string_t
+	{
+		constexpr std::string operator()(const T& value) const noexcept
+		{
+			using std::to_string;
+			if constexpr(IsStringType<T>)
+				return value;
+			else
+				return to_string(value);
+		}
+	};
+
+
+	auto value_to_string(const auto& value) -> std::string
+	{
+		return value_to_string_t<std::remove_cvref_t<decltype(value)>>{}(value);
+	}
+
+	template <typename... Ts>
+	struct value_to_string_t<throws_t<Ts...>>
+	{
+		using type = throws_t<Ts...>;
+		constexpr std::string operator()([[maybe_unused]] const type& value) const noexcept
+		{
+			std::string res{"throws<"};
+			if constexpr(sizeof...(Ts) > 0)
+			{
+				res += ((type_to_name(std::type_identity<Ts>{}) + ", ") + ...);
+				res.erase(res.size() - 1);
+				res.back() = '>';
+			}
+			else
+			{
+				res += "std::exception>";
+			}
+			return res;
+		}
+	};
 
 	inline namespace internal
 	{
@@ -58,47 +104,37 @@ namespace litmus
 		concept IsStringifyable = requires(const T& val)
 		{
 			{
-				std::to_string(val)
+				value_to_string(val)
 			}
 			->std::same_as<std::string>;
 		};
-		auto to_string(const auto& val) noexcept -> std::string
+		auto to_string_fn(const auto& val) noexcept -> std::string
 		{
-			using T = typename std::decay<decltype(val)>::type;
+			using T = std::remove_cvref_t<typename std::decay<decltype(val)>::type>;
 			if constexpr(std::is_same_v<T, bool>)
 			{
 				return (val) ? "true" : "false";
 			}
-
-			if constexpr(std::is_same_v<T, throws_result_t>)
+			else if constexpr(std::is_same_v<T, throws_result_t>)
 			{
 				return ((val == true) ? std::string("EXCEPT") : std::string("NOEXCEPT")) +
 					   ((val.what.empty()) ? "" : ": ") + val.what;
 			}
-			std::string res;
-			if constexpr(IsStringifyable<T>) res = std::to_string(val);
+			else if constexpr(IsStringifyable<T>)
+			{
+				std::string res = value_to_string(val);
 
-			if constexpr(std::is_integral_v<T> && std::is_unsigned_v<T>)
-			{
-				return res + "u";
+				if constexpr(std::is_integral_v<T> && std::is_unsigned_v<T>)
+				{
+					return res + "u";
+				}
+				return res;
 			}
-			return res;
-		}
-		auto to_string(const auto& val, auto& user_string) noexcept -> std::string
-		{
-			using T = typename std::decay<decltype(val)>::type;
-			std::string res;
-			if constexpr(IsStringifyable<T>) res = std::to_string(val);
-			if constexpr(std::is_integral_v<T> && std::is_unsigned_v<T>)
+			else
 			{
-				if(user_string.size() == res.size() + 1 && user_string[user_string.size() - 1] == 'u')
-					user_string.erase(user_string.size() - 1);
+				static_assert(!std::is_same_v<T, T>, "type cannot be converted to a string");
 			}
-			if constexpr(std::is_same_v<T, bool>)
-			{
-				res = (val) ? "true" : "false";
-			}
-			return res;
+			return "";
 		}
 
 		template <typename Ex, typename... ExRemainder>
@@ -210,13 +246,13 @@ namespace litmus
 				std::string lhs_user{};
 				std::string rhs_user{};
 				evaluate(m_Source, operation, (Fatal) ? "require" : "expect", lhs_user, rhs_user);
-				suite_context.output.expect_result(to_string(m_Value), to_string(rhs), lhs_user, rhs_user, operation,
-												   res, Fatal, expect_info.message);
+				suite_context.output.expect_result(to_string_fn(m_Value), to_string_fn(rhs), lhs_user, rhs_user,
+												   operation, res, Fatal, expect_info.message);
 				expect_info.message		   = {};
 				suite_context.output.fatal = !res && Fatal;
 			}
 			T m_Value;
-			const source_location& m_Source;
+			source_location m_Source;
 		};
 
 		template <bool Fatal, typename Fn, typename... Args>
@@ -322,15 +358,15 @@ namespace litmus
 				std::string lhs_user{};
 				std::string rhs_user{};
 				evaluate(m_Source, operation, (Fatal) ? "require" : "expect", lhs_user, rhs_user);
-				suite_context.output.expect_result(to_string(lhs), to_string(rhs), lhs_user, rhs_user, operation, res,
-												   Fatal, expect_info.message);
+				suite_context.output.expect_result(to_string_fn(lhs), to_string_fn(rhs), lhs_user, rhs_user, operation,
+												   res, Fatal, expect_info.message);
 				expect_info.message = {};
 
 				suite_context.output.fatal = !res && Fatal;
 			}
 			Fn m_Fun;
 			std::tuple<Args...> m_Args;
-			const source_location& m_Source;
+			source_location m_Source;
 		};
 
 		template <typename T, typename Y, typename... Ts>
@@ -356,6 +392,40 @@ namespace litmus
 	expect(T&&, Ts&&...)->expect<T, Ts...>;
 
 	template <typename T, typename... Ts>
+	struct expect_true : public expect<T, Ts...>
+	{
+		using base = expect<T, Ts...>;
+		expect_true(T&& t, Ts&&... ts, const source_location& loc = source_location::current())
+			: base(std::forward<T>(t), std::forward<Ts>(ts)..., loc), m_Result(base::operator==(true))
+		{}
+
+		constexpr operator bool() const noexcept { return m_Result; }
+
+	  private:
+		const bool m_Result{};
+	};
+
+	template <typename T, typename... Ts>
+	expect_true(T&&, Ts&&...)->expect_true<T, Ts...>;
+
+	template <typename T, typename... Ts>
+	struct expect_false : public expect<T, Ts...>
+	{
+		using base = expect<T, Ts...>;
+		expect_false(T&& t, Ts&&... ts, const source_location& loc = source_location::current())
+			: base(std::forward<T>(t), std::forward<Ts>(ts)..., loc), m_Result(base::operator==(false))
+		{}
+
+		constexpr operator bool() const noexcept { return m_Result; }
+
+	  private:
+		const bool m_Result{};
+	};
+
+	template <typename T, typename... Ts>
+	expect_false(T&&, Ts&&...)->expect_false<T, Ts...>;
+
+	template <typename T, typename... Ts>
 	struct require : public std::conditional_t<std::is_invocable_v<T, Ts...>, expect_invocable_t<true, T, Ts...>,
 											   expect_t<true, T>>
 	{
@@ -369,25 +439,46 @@ namespace litmus
 	template <typename T, typename... Ts>
 	require(T&&, Ts&&...)->require<T, Ts...>;
 
-	inline namespace internal
+	template <typename T, typename... Ts>
+	struct require_true : public require<T, Ts...>
 	{
-		template <typename T>
-		inline auto internal_to_string(const T& value) -> std::string
-		{
-			return std::to_string(value);
-		}
+		using base = require<T, Ts...>;
+		require_true(T&& t, Ts&&... ts, const source_location& loc = source_location::current())
+			: base(std::forward<T>(t), std::forward<Ts>(ts)..., loc), m_Result(base::operator==(true))
+		{}
 
-		inline auto internal_to_string(const std::string& value) -> const std::string& { return value; }
+		constexpr operator bool() const noexcept { return m_Result; }
 
-		inline auto internal_to_string(const char* value) -> std::string_view { return value; }
-	} // namespace internal
+	  private:
+		const bool m_Result{};
+	};
+
+	template <typename T, typename... Ts>
+	require_true(T&&, Ts&&...)->require_true<T, Ts...>;
+
+	template <typename T, typename... Ts>
+	struct require_false : public require<T, Ts...>
+	{
+		using base = require<T, Ts...>;
+		require_false(T&& t, Ts&&... ts, const source_location& loc = source_location::current())
+			: base(std::forward<T>(t), std::forward<Ts>(ts)..., loc), m_Result(base::operator==(false))
+		{}
+
+		constexpr operator bool() const noexcept { return m_Result; }
+
+	  private:
+		const bool m_Result{};
+	};
+
+	template <typename T, typename... Ts>
+	require_false(T&&, Ts&&...)->require_false<T, Ts...>;
 
 
-	template <typename... Ts>
+	template <IsStringifyable... Ts>
 	void info(Ts&&... values)
 	{
 		if(suite_context.output.fatal > 0) return;
-		expect_info.message = std::move(combine_text(internal_to_string(std::forward<Ts>(values))...));
+		expect_info.message = std::move(combine_text(value_to_string(std::forward<Ts>(values))...));
 	}
 
 	template <typename... Ts>
@@ -398,4 +489,6 @@ namespace litmus
 	}
 
 	[[nodiscard]] constexpr auto nothrows() noexcept -> nothrows_t { return {}; }
+
+
 } // namespace litmus

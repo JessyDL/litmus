@@ -2,85 +2,20 @@
 #include <type_traits>
 
 #include <litmus/details/fixed_string.hpp>
+#include <litmus/details/runner.hpp>
 #include <litmus/details/scope.hpp>
 #include <litmus/details/source_location.hpp>
 
 namespace litmus
 {
-	template <typename T>
-	inline auto type_to_name(std::type_identity<T>) -> std::string
-	{
-		return typeid(T).name();
-	}
-
-	template <>
-	inline auto type_to_name(std::type_identity<uint8_t>) -> std::string
-	{
-		return "ui8";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<uint16_t>) -> std::string
-	{
-		return "ui16";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<uint32_t>) -> std::string
-	{
-		return "ui32";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<uint64_t>) -> std::string
-	{
-		return "ui64";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<int8_t>) -> std::string
-	{
-		return "i8";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<int16_t>) -> std::string
-	{
-		return "i16";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<int32_t>) -> std::string
-	{
-		return "i32";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<int64_t>) -> std::string
-	{
-		return "i64";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<float>) -> std::string
-	{
-		return "float";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<double>) -> std::string
-	{
-		return "double";
-	}
-	template <>
-	inline auto type_to_name(std::type_identity<bool>) -> std::string
-	{
-		return "bool";
-	}
-
 	template <auto Value>
 	inline auto type_to_name(std::type_identity<vpack_value<Value>>) -> std::string
 	{
 		return std::to_string(Value);
 	}
+
 	inline namespace internal
 	{
-		template <typename T>
-		inline auto type_to_name_internal() -> std::string
-		{
-			return type_to_name(std::type_identity<std::remove_cvref_t<T>>{});
-		}
 		struct suite_functor
 		{
 			static constexpr bool supports_generators = true;
@@ -91,21 +26,12 @@ namespace litmus
 			template <typename... InvokeTypes, typename... Ts>
 			constexpr void operator()(auto& fn, const char* name, const source_location& location, Ts&&... values)
 			{
-				runner.test([name = name, values = std::tuple{values...}, fn = fn, location = location]() {
-					suite_context = {};
-
-					std::string fullname{name};
-
+				runner.template test<InvokeTypes...>(name, [name = name, values = std::tuple{values...}, fn = fn,
+															location = location]() {
+					suite_context						 = {};
 					static constexpr auto parameter_size = sizeof...(InvokeTypes);
 
-					if constexpr(parameter_size > 0)
-					{
-						fullname += "<";
-						fullname += ((type_to_name_internal<InvokeTypes>() + ", ") + ...);
-						fullname.erase(fullname.size() - 1);
-						fullname.back() = '>';
-					}
-					suite_context.output.scope_open(fullname, {},
+					suite_context.output.scope_open(name, {}, location,
 													pack_to_string<std::tuple_size_v<decltype(values)>>(values));
 					test_id_t next_stack{};
 					do
@@ -126,13 +52,51 @@ namespace litmus
 					} while(!next_stack.empty() && !suite_context.output.fatal);
 
 					suite_context.output.scope_close();
-					suite_context.output.location(location);
 					suite_context.output.sync();
 					return suite_context.output;
 				});
+				// runner.test([name = name, values = std::tuple{values...}, fn = fn, location = location]() {
+				// 	suite_context = {};
+
+				// 	std::string fullname{name};
+
+				// 	static constexpr auto parameter_size = sizeof...(InvokeTypes);
+
+				// 	if constexpr(parameter_size > 0)
+				// 	{
+				// 		fullname += "<";
+				// 		fullname += ((type_to_name_internal<InvokeTypes>() + ", ") + ...);
+				// 		fullname.erase(fullname.size() - 1);
+				// 		fullname.back() = '>';
+				// 	}
+				// 	suite_context.output.scope_open(fullname, {},
+				// 									pack_to_string<std::tuple_size_v<decltype(values)>>(values));
+				// 	test_id_t next_stack{};
+				// 	do
+				// 	{
+				// 		suite_context.reset();
+				// 		suite_context.stack = std::move(next_stack);
+				// 		if constexpr(parameter_size > 0)
+				// 		{
+				// 			std::apply([&fn](auto&&... values) { fn.template operator()<InvokeTypes...>(values...); },
+				// 					   values);
+				// 		}
+				// 		else
+				// 		{
+				// 			std::apply(fn, values);
+				// 		}
+
+				// 		next_stack = std::move(suite_context.stack);
+				// 	} while(!next_stack.empty() && !suite_context.output.fatal);
+
+				// 	suite_context.output.scope_close();
+				// 	suite_context.output.location(location);
+				// 	suite_context.output.sync();
+				// 	return suite_context.output;
+				// });
 			}
-		};
-	} // namespace internal
+		}; // namespace internal
+	}	  // namespace internal
 	template <fixed_string Name, fixed_string... Categories>
 	[[nodiscard]] constexpr auto suite(const source_location& location = source_location::current())
 	{
