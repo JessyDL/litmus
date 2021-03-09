@@ -1,4 +1,5 @@
 #include <litmus/details/cache.hpp>
+#include <litmus/details/source_location.hpp>
 
 unsigned litmus::internal::cache_t::m_RefCount						 = 0;
 litmus::internal::cache_t::data_t* litmus::internal::cache_t::m_Data = nullptr;
@@ -9,6 +10,7 @@ using namespace litmus::internal;
 
 file_t::file_t(const std::string& filename)
 {
+#ifndef LITMUS_NO_SOURCE
 	std::ifstream stream(filename);
 	if(!stream.is_open())
 	{
@@ -46,6 +48,7 @@ file_t::file_t(const std::string& filename)
 	m_LineLength.emplace_back(m_Content.size() - m_LinePos.back());
 	m_Lines.emplace_back(&m_Content[m_LinePos.back()], m_LineLength.back());
 	stream.close();
+#endif
 }
 
 const file_t& cache_t::get(const std::string& file) const

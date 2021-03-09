@@ -65,7 +65,7 @@ namespace litmus::generator
 		}
 
 	  private:
-		static constexpr type m_Values[]{Value0, Values...};
+		static constexpr type m_Values[sizeof...(Values) + 1]{Value0, Values...};
 		size_t m_Current{0};
 	};
 } // namespace litmus::generator

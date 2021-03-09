@@ -13,12 +13,15 @@ namespace litmus
 		{
 		  public:
 			file_t(const std::string& filename);
-			auto begin() noexcept { return std::begin(m_Lines); }
-			auto begin() const noexcept { return std::begin(m_Lines); }
-			auto cbegin() const noexcept { return std::cbegin(m_Lines); }
-			auto end() noexcept { return std::end(m_Lines); }
-			auto end() const noexcept { return std::end(m_Lines); }
-			auto cend() const noexcept { return std::cend(m_Lines); }
+			auto begin() noexcept -> std::vector<std::string_view>::iterator { return std::begin(m_Lines); }
+			auto begin() const noexcept -> std::vector<std::string_view>::const_iterator { return std::begin(m_Lines); }
+			auto cbegin() const noexcept -> std::vector<std::string_view>::const_iterator
+			{
+				return std::cbegin(m_Lines);
+			}
+			auto end() noexcept -> std::vector<std::string_view>::iterator { return std::end(m_Lines); }
+			auto end() const noexcept -> std::vector<std::string_view>::const_iterator { return std::end(m_Lines); }
+			auto cend() const noexcept -> std::vector<std::string_view>::const_iterator { return std::cend(m_Lines); }
 
 		  private:
 			std::string m_Content;
