@@ -24,34 +24,44 @@ namespace litmus
 			bool should_run() noexcept { return true; }
 
 			template <typename... InvokeTypes, typename... Ts>
-			constexpr void operator()(auto& fn, const char* name, const source_location& location, Ts&&... values)
+			constexpr void operator()(auto& fn, const char* name, const source_location& location,
+									  const std::vector<const char*>& categories, Ts&&... values)
 			{
 				runner.template test<InvokeTypes...>(name, [name = name, values = std::tuple{values...}, fn = fn,
-															location = location]() {
-					suite_context						 = {};
-					static constexpr auto parameter_size = sizeof...(InvokeTypes);
+															location = location, categories = categories]() {
+					suite_context = {};
 
-					suite_context.output.scope_open(name, {}, location,
-													pack_to_string<std::tuple_size_v<decltype(values)>>(values));
-					test_id_t next_stack{};
-					do
+					if(config->categories.empty() ||
+					   std::any_of(std::begin(categories), std::end(categories), [](const auto& category) {
+						   return std::find(std::begin(config->categories), std::end(config->categories), category) !=
+								  std::end(config->categories);
+					   }))
 					{
-						suite_context.reset();
-						suite_context.stack = std::move(next_stack);
-						if constexpr(parameter_size > 0)
-						{
-							std::apply([&fn](auto&&... values) { fn.template operator()<InvokeTypes...>(values...); },
-									   values);
-						}
-						else
-						{
-							std::apply(fn, values);
-						}
+						static constexpr auto parameter_size = sizeof...(InvokeTypes);
 
-						next_stack = std::move(suite_context.stack);
-					} while(!next_stack.empty() && !suite_context.output.fatal);
+						suite_context.output.scope_open(name, {}, location,
+														pack_to_string<std::tuple_size_v<decltype(values)>>(values));
+						test_id_t next_stack{};
+						do
+						{
+							suite_context.reset();
+							suite_context.stack = std::move(next_stack);
+							if constexpr(parameter_size > 0)
+							{
+								std::apply(
+									[&fn](auto&&... values) { fn.template operator()<InvokeTypes...>(values...); },
+									values);
+							}
+							else
+							{
+								std::apply(fn, values);
+							}
 
-					suite_context.output.scope_close();
+							next_stack = std::move(suite_context.stack);
+						} while(!next_stack.empty() && !suite_context.output.fatal);
+
+						suite_context.output.scope_close();
+					}
 					suite_context.output.sync();
 					return suite_context.output;
 				});
