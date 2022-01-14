@@ -39,8 +39,10 @@ namespace litmus
 			}
 
 			template <typename... InvokeTypes, typename... Ts>
-			constexpr void operator()(auto& fn, const char* name, const source_location& location, Ts&&... values)
+			constexpr void operator()(auto& fn, const char* name, const source_location& location,
+									  const std::vector<const char*>& categories, Ts&&... values)
 			{
+				if(!categories.empty()) throw std::runtime_error("not implemented");
 				// we clear the stack when we detect it is the last "known" section we need to play.
 				// this results in subsequent sections triggering "suite_context.stack.empty()".
 				if(suite_context.stack.size() == m_Depth + 1 && suite_context.stack.get(m_Depth) == m_Index)

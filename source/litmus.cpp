@@ -225,9 +225,11 @@ auto litmus::run(int argc, char* argv[],
 		source_location location;
 		std::vector<std::pair<std::vector<std::string>, size_t>> templates{};
 		std::vector<test_result_t> results{};
+		bool skipped;
 	};
 
-	auto run_suite = [](const char* name, const auto& test_units) -> suite_results_t {
+	auto run_suite = [](const char* name, const runner_t::test_t& test_units,
+						std::span<std::string> categories = std::span<std::string>{}) -> suite_results_t {
 		suite_results_t result{};
 		result.name = name;
 		if(test_units.empty()) return {};
@@ -242,7 +244,9 @@ auto litmus::run(int argc, char* argv[],
 			result.templates.emplace_back(tests.templates, tests.functions.size());
 			for(const auto& test : tests.functions)
 			{
-				result.results.emplace_back(test());
+				auto res = test();
+				if(res.results.empty()) continue;
+				result.results.emplace_back(std::move(res));
 
 				result.results.back().get_result_values(local_pass, local_fail, local_fatal, local_duration);
 				result.pass += local_pass;
@@ -251,7 +255,9 @@ auto litmus::run(int argc, char* argv[],
 				result.duration += local_duration;
 			}
 		}
-		result.location = std::begin(result.results)->root().location;
+		result.skipped = result.results.empty();
+		if(!result.skipped)
+			result.location = std::begin(result.results)->root().location;
 		return result;
 	};
 
@@ -276,7 +282,7 @@ auto litmus::run(int argc, char* argv[],
 		for(const auto& [name, test_units] : internal::runner)
 		{
 			auto suite = run_suite(name, test_units);
-
+			if(suite.skipped) continue;
 			pass += suite.pass;
 			fail += suite.fail;
 			fatal += suite.fatal;
@@ -290,12 +296,14 @@ auto litmus::run(int argc, char* argv[],
 		suite_results.reserve(internal::runner.size());
 		for(const auto& [name, test_units] : internal::runner)
 		{
-			suite_results.emplace_back(std::async(std::launch::async, run_suite, name, test_units));
+			suite_results.emplace_back(std::async(std::launch::async, run_suite, name, test_units,
+												  std::span<std::string>{config->categories}));
 		}
 
 		for(auto& suite_future : suite_results)
 		{
 			auto suite = suite_future.get();
+			if(suite.skipped) continue;
 			pass += suite.pass;
 			fail += suite.fail;
 			fatal += suite.fatal;

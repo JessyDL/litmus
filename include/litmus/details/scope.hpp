@@ -169,9 +169,9 @@ namespace litmus
 				if constexpr(Index + 1 == sizeof...(FnTypes))
 				{
 					(args_base::unpack_args(
-						 [&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject](auto&&... values) {
+						 [&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject, &categories = m_Categories](auto&&... values) {
 							 scope.template operator()<InvokeTypes..., typename fn_type::template type<N>>(
-								 fn, name, location, std::forward<decltype(values)>(values)...);
+							 fn, name, location, categories, std::forward<decltype(values)>(values)...);
 						 }),
 					 ...);
 				}
@@ -241,18 +241,20 @@ namespace litmus
 				if(m_HasRun || !m_ScopeObject.should_run()) return *this;
 				if constexpr(SupportsGenerators<Functor>)
 				{
-					args_base::unpack_args(
-						[&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject](auto&&... values) {
-							scope.template operator()<>(fn, name, location, std::forward<decltype(values)>(values)...);
+					args_base::unpack_args([&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject,
+											&categories = m_Categories](auto&&... values) {
+							scope.template operator()<>(fn, name, location, categories, std::forward<decltype(values)>(values)...);
 						});
 				}
 				else
 				{
 					std::apply(
-						[&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject](auto&&... values) {
+						[&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject,
+						 &categories = m_Categories](auto&&... values) {
 							static_assert((!IsGenerator<std::remove_cvref_t<decltype(values)>> && ...),
 										  "generator types not supported on sections.");
-							scope.template operator()<>(fn, name, location, std::forward<decltype(values)>(values)...);
+							scope.template operator()<>(fn, name, location,
+														categories, std::forward<decltype(values)>(values)...);
 						},
 						args_base::m_ScopeArgs);
 				}
