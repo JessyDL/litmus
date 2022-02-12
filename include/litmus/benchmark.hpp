@@ -2,36 +2,179 @@
 #include <tuple>
 
 #include <litmus/details/fixed_string.hpp>
+#include <litmus/details/runner.hpp>
+#include <litmus/details/scope.hpp>
+#include <litmus/details/source_location.hpp>
 
 namespace litmus
 {
+	template <auto Value>
+	inline auto type_to_name(std::type_identity<vpack_value<Value>>) -> std::string
+	{
+		return std::to_string(Value);
+	}
+
 	inline namespace internal
 	{
-		template <typename... Ts>
-		struct benchmark_t
+		struct benchmark_functor_t
 		{
-			template <typename... Ys>
-			benchmark_t(const char* name, Ys&&... ys) : m_Name(name), m_Args(std::forward<Ys>(ys)...)
-			{}
+			static constexpr bool supports_generators = true;
+			static constexpr bool supports_templates  = true;
+			static constexpr bool supports_sub_scopes = true;
 
-			template <typename Fn>
-			requires(requires(Fn fn, std::tuple<Ts...> values) { std::apply(fn, values); }) auto operator=(Fn&& fn)
-				-> benchmark_t
+			bool should_run() noexcept { return true; }
+
+			template <typename... InvokeTypes, typename... Ts>
+			constexpr void operator()(auto& fn, const char* name, const source_location& location,
+									  const std::vector<const char*>& categories, Ts&&... values)
 			{
-				std::apply(fn, m_Args);
-				return *this;
-			}
+				runner.template benchmark<InvokeTypes...>(
+					name, categories,
+					[name = name, values = std::tuple{values...}, fn = fn, location = location,
+					 categories = categories]() {
+						suite_context						 = {};
+						suite_context.is_benchmark			 = true;
+						static constexpr auto parameter_size = sizeof...(InvokeTypes);
+						suite_context.output.scope_open(name, {}, location,
+														pack_to_string<std::tuple_size_v<decltype(values)>>(values));
+						test_id_t next_stack{};
+						do
+						{
+							suite_context.reset();
+							suite_context.stack = std::move(next_stack);
 
-			const char* m_Name;
-			std::tuple<Ts...> m_Args;
+							try
+							{
+								if constexpr(parameter_size > 0)
+								{
+									std::apply(
+										[&fn](auto&&... values) { fn.template operator()<InvokeTypes...>(values...); },
+										values);
+								}
+								else
+								{
+									std::apply(fn, values);
+								}
+							}
+							catch(std::exception& e)
+							{
+								suite_context = {};
+								suite_context.output.scope_open(
+									name, {}, location, pack_to_string<std::tuple_size_v<decltype(values)>>(values));
+								suite_context.output.expect_result(e.what(), "throw", "", "",
+																   test_result_t::expect_t::operation_t::inequal, false,
+																   true, "");
+								suite_context.output.scope_close();
+								suite_context.output.sync();
+								return suite_context.output;
+							}
+
+							catch(...)
+							{
+								suite_context = {};
+								suite_context.output.scope_open(
+									name, {}, location, pack_to_string<std::tuple_size_v<decltype(values)>>(values));
+								suite_context.output.expect_result("exception", "throw", "", "",
+																   test_result_t::expect_t::operation_t::inequal, false,
+																   true, "");
+								suite_context.output.scope_close();
+								suite_context.output.sync();
+								return suite_context.output;
+							}
+
+							next_stack = std::move(suite_context.stack);
+						} while(!next_stack.empty() && !suite_context.output.fatal);
+
+						suite_context.output.scope_close();
+						suite_context.output.sync();
+						return suite_context.output;
+					});
+			}
 		};
 
 	} // namespace internal
 
 
-	template <fixed_string Name, typename... Ts>
-	constexpr auto benchmark(Ts&&... args) -> benchmark_t<Ts...>
+	template <fixed_string Name, fixed_string... Categories>
+	[[nodiscard]] constexpr auto benchmark(const source_location& location = source_location::current())
 	{
-		return benchmark_t<Ts...>{Name, std::forward<Ts>(args)...};
+		return scope_t<benchmark_functor_t>(Name, {Categories...}, location);
+	}
+
+	template <fixed_string Name, fixed_string... Categories, typename T0>
+	requires(IsCopyConstructible<T0>)
+		[[nodiscard]] constexpr auto benchmark(T0&& v0, const source_location& location = source_location::current())
+	{
+		return scope_t<benchmark_functor_t, T0>(Name, {Categories...}, location, std::forward<T0>(v0));
+	}
+
+	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1>
+	requires(IsCopyConstructible<T0, T1>)
+		[[nodiscard]] constexpr auto benchmark(T0&& v0, T1&& v1,
+											   const source_location& location = source_location::current())
+	{
+		return scope_t<benchmark_functor_t, T0, T1>(Name, {Categories...}, location, std::forward<T0>(v0),
+													std::forward<T1>(v1));
+	}
+
+	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2>
+	requires(IsCopyConstructible<T0, T1, T2>)
+		[[nodiscard]] constexpr auto benchmark(T0&& v0, T1&& v1, T2&& v2,
+											   const source_location& location = source_location::current())
+	{
+		return scope_t<benchmark_functor_t, T0, T1, T2>(Name, {Categories...}, location, std::forward<T0>(v0),
+														std::forward<T1>(v1), std::forward<T2>(v2));
+	}
+
+	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3>
+	requires(IsCopyConstructible<T0, T1, T2, T3>)
+		[[nodiscard]] constexpr auto benchmark(T0&& v0, T1&& v1, T2&& v2, T3&& v3,
+											   const source_location& location = source_location::current())
+	{
+		return scope_t<benchmark_functor_t, T0, T1, T2, T3>(Name, {Categories...}, location, std::forward<T0>(v0),
+															std::forward<T1>(v1), std::forward<T2>(v2),
+															std::forward<T3>(v3));
+	}
+	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
+			  typename T4>
+	requires(IsCopyConstructible<T0, T1, T2, T3, T4>)
+		[[nodiscard]] constexpr auto benchmark(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4,
+											   const source_location& location = source_location::current())
+	{
+		return scope_t<benchmark_functor_t, T0, T1, T2, T3, T4>(Name, {Categories...}, location, std::forward<T0>(v0),
+																std::forward<T1>(v1), std::forward<T2>(v2),
+																std::forward<T3>(v3), std::forward<T4>(v4));
+	}
+	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
+			  typename T4, typename T5>
+	requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5>)
+		[[nodiscard]] constexpr auto benchmark(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5,
+											   const source_location& location = source_location::current())
+	{
+		return scope_t<benchmark_functor_t, T0, T1, T2, T3, T4, T5>(
+			Name, {Categories...}, location, std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
+			std::forward<T3>(v3), std::forward<T4>(v4), std::forward<T5>(v5));
+	}
+	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
+			  typename T4, typename T5, typename T6>
+	requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5, T6>)
+		[[nodiscard]] constexpr auto benchmark(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5, T6&& v6,
+											   const source_location& location = source_location::current())
+	{
+		return scope_t<benchmark_functor_t, T0, T1, T2, T3, T4, T5, T6>(
+			Name, {Categories...}, location, std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
+			std::forward<T3>(v3), std::forward<T4>(v4), std::forward<T5>(v5), std::forward<T6>(v6));
+	}
+
+	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
+			  typename T4, typename T5, typename T6, typename T7>
+	requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5, T6, T7>)
+		[[nodiscard]] constexpr auto benchmark(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5, T6&& v6, T7&& v7,
+											   const source_location& location = source_location::current())
+	{
+		return scope_t<benchmark_functor_t, T0, T1, T2, T3, T4, T5, T6, T7>(
+			Name, {Categories...}, location, std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
+			std::forward<T3>(v3), std::forward<T4>(v4), std::forward<T5>(v5), std::forward<T6>(v6),
+			std::forward<T7>(v7));
 	}
 } // namespace litmus

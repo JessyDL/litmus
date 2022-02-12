@@ -23,8 +23,10 @@ namespace litmus
 				suite_context.index += 1;
 			}
 
-			bool should_run() noexcept
+			bool should_run()
 			{
+				if(suite_context.is_benchmark && m_Depth > 0)
+					throw std::runtime_error("Cannot have nested sections in benchmarks");
 				if(suite_context.output.fatal) return false;
 				if(suite_context.bail)
 				{
@@ -60,17 +62,12 @@ namespace litmus
 				suite_context.working_stack.set(m_Depth, m_Index);
 				suite_context.output.scope_open(name, suite_context.working_stack, location,
 												std::vector<std::string>{std::to_string(values)...});
-				try
-				{
-					if constexpr(sizeof...(InvokeTypes) > 0)
-						fn.template operator()<InvokeTypes...>(std::forward<Ts>(values)...);
-					else
-						fn(std::forward<Ts>(values)...);
-				}
-				catch(const std::exception& e)
-				{
-					std::cerr << e.what() << '\n';
-				}
+
+				if constexpr(sizeof...(InvokeTypes) > 0)
+					fn.template operator()<InvokeTypes...>(std::forward<Ts>(values)...);
+				else
+					fn(std::forward<Ts>(values)...);
+
 				suite_context.output.scope_close();
 				suite_context.working_stack.resize(m_Depth - 1);
 

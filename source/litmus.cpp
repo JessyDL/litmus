@@ -3,9 +3,11 @@
 #include <litmus/litmus.hpp>
 unsigned litmus::internal::runner_t::m_RefCount																  = 0;
 std::unordered_map<const char*, litmus::internal::runner_t::test_t>* litmus::internal::runner_t::m_NamedTests = nullptr;
-unsigned litmus::internal::config_t::m_RefCount																  = 0;
-litmus::internal::config_t::data_t* litmus::internal::config_t::data										  = nullptr;
-thread_local litmus::internal::suite_context_t litmus::internal::suite_context								  = {};
+std::unordered_map<const char*, litmus::internal::runner_t::benchmark_t>*
+	litmus::internal::runner_t::m_NamedBenchmarks							   = nullptr;
+unsigned litmus::internal::config_t::m_RefCount								   = 0;
+litmus::internal::config_t::data_t* litmus::internal::config_t::data		   = nullptr;
+thread_local litmus::internal::suite_context_t litmus::internal::suite_context = {};
 
 #include <exception>
 #include <fstream>
@@ -188,6 +190,49 @@ void configure(int argc, char* argv[]) // NOLINT
 	configure({args});
 }
 
+void run_benchmarks()
+{
+	struct benchmark_results_t
+	{
+		const char* name;
+		std::chrono::microseconds duration;
+		source_location location;
+		std::vector<std::pair<std::vector<std::string>, size_t>> templates{};
+		std::vector<test_result_t> results{};
+		bool skipped;
+	};
+
+	auto run_benchmark = [](const char* name, const runner_t::benchmark_t& benchmark_units,
+							std::span<std::string> categories = std::span<std::string>{}) {
+		for(auto& [uid, benchmarks] : benchmark_units)
+		{
+			if(!categories.empty() && std::none_of(std::begin(categories), std::end(categories),
+												   [&categories = benchmarks.categories](const auto& category) {
+													   return std::find(std::begin(categories), std::end(categories),
+																		category) != std::end(categories);
+												   }))
+				continue;
+
+			for(const auto& benchmark : benchmarks.functions)
+			{
+				benchmark();
+			}
+		}
+	};
+	for(const auto& [name, test_units] : internal::runner.benchmarks())
+	{
+		run_benchmark(name, test_units, config->categories);
+		/* auto suite = run_suite(name, test_units);
+		if(suite.skipped) continue;
+		pass += suite.pass;
+		fail += suite.fail;
+		fatal += suite.fatal;
+		duration += suite.duration;
+		format_suite(suite);
+		*/
+	}
+}
+
 auto litmus::run(int argc, char* argv[],
 				 formatter* formatter) noexcept -> int // NOLINT
 {
@@ -256,8 +301,7 @@ auto litmus::run(int argc, char* argv[],
 			}
 		}
 		result.skipped = result.results.empty();
-		if(!result.skipped)
-			result.location = std::begin(result.results)->root().location;
+		if(!result.skipped) result.location = std::begin(result.results)->root().location;
 		return result;
 	};
 
@@ -316,5 +360,8 @@ auto litmus::run(int argc, char* argv[],
 		pass, fail, fatal, duration,
 		std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - real_start));
 	formatter->flush();
+
+	run_benchmarks();
+
 	return (fail > 0 || fatal > 0) ? 1 : 0;
 }

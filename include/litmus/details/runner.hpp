@@ -39,14 +39,22 @@ namespace litmus
 				std::vector<std::string> templates{};
 				std::vector<std::function<test_result_t()>> functions{};
 			};
-
+			struct benchmark_template_pack_t
+			{
+				std::vector<std::string> templates{};
+				std::vector<const char*> categories{};
+				std::vector<std::function<void()>> functions{};
+			};
+			
 			using test_t = std::unordered_map<uuid_t, template_pack_t>;
+			using benchmark_t = std::unordered_map<uuid_t, benchmark_template_pack_t>;
 
 			runner_t()
 			{
 				if(m_RefCount == 0)
 				{
 					m_NamedTests = new std::unordered_map<const char*, test_t>();
+					m_NamedBenchmarks = new std::unordered_map<const char*, benchmark_t>();
 				}
 				++m_RefCount;
 			}
@@ -73,6 +81,8 @@ namespace litmus
 
 			[[nodiscard]] static auto size() noexcept { return m_NamedTests->size(); }
 
+			[[nodiscard]] static auto& benchmarks() noexcept { return *m_NamedBenchmarks; }
+
 			template <typename... Ts>
 			static void test(const char* name, auto&& arg)
 			{
@@ -85,15 +95,23 @@ namespace litmus
 				t.functions.emplace_back(std::forward<decltype(arg)>(arg));
 			}
 
-			template <typename T>
-			static void benchmark(T&& arg)
+			template <typename... Ts>
+			static void benchmark(const char* name, const std::vector<const char*>& categories, auto&& arg)
 			{
-				m_Benchmarks->emplace_back(std::forward<T>(arg));
+				auto& t = (*m_NamedBenchmarks)[name][uuid_for<Ts...>()];
+				if constexpr(sizeof...(Ts) > 0)
+				{
+					if(t.templates.size() != sizeof...(Ts))
+						t.templates = std::vector<std::string>{{type_to_name_internal<Ts>()}...};
+				}
+				t.categories = categories;
+				t.functions.emplace_back(std::forward<decltype(arg)>(arg));
+				
 			}
 
 		  private:
 			static std::unordered_map<const char*, test_t>* m_NamedTests;
-			static std::vector<std::function<void()>>* m_Benchmarks;
+			static std::unordered_map<const char*, benchmark_t>* m_NamedBenchmarks;
 			static unsigned m_RefCount;
 		};
 

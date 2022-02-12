@@ -46,15 +46,45 @@ namespace litmus
 						{
 							suite_context.reset();
 							suite_context.stack = std::move(next_stack);
-							if constexpr(parameter_size > 0)
+
+							try
 							{
-								std::apply(
-									[&fn](auto&&... values) { fn.template operator()<InvokeTypes...>(values...); },
-									values);
+								if constexpr(parameter_size > 0)
+								{
+									std::apply(
+										[&fn](auto&&... values) { fn.template operator()<InvokeTypes...>(values...); },
+										values);
+								}
+								else
+								{
+									std::apply(fn, values);
+								}
+
 							}
-							else
+							catch(std::exception& e)
 							{
-								std::apply(fn, values);
+								suite_context = {};
+								suite_context.output.scope_open(
+									name, {}, location, pack_to_string<std::tuple_size_v<decltype(values)>>(values));
+								suite_context.output.expect_result(e.what(), "throw", "", "",
+																   test_result_t::expect_t::operation_t::inequal, false,
+																   true, "");
+								suite_context.output.scope_close();
+								suite_context.output.sync();
+								return suite_context.output;
+							}
+
+							catch (...)
+							{
+								suite_context = {};
+								suite_context.output.scope_open(
+									name, {}, location, pack_to_string<std::tuple_size_v<decltype(values)>>(values));
+								suite_context.output.expect_result("exception", "throw", "", "",
+																   test_result_t::expect_t::operation_t::inequal, false,
+																   true, "");
+								suite_context.output.scope_close();
+								suite_context.output.sync();
+								return suite_context.output;
 							}
 
 							next_stack = std::move(suite_context.stack);

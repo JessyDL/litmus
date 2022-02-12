@@ -22,6 +22,7 @@ namespace litmus
 			test_id_t stack{};
 			test_id_t working_stack{};
 			bool bail{false};
+			bool is_benchmark{false};
 		} suite_context;
 	} // namespace internal
 } // namespace litmus

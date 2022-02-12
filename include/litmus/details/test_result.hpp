@@ -82,7 +82,6 @@ namespace litmus
 
 		struct test_result_t
 		{
-
 			struct scope_t
 			{
 				std::string name{};
