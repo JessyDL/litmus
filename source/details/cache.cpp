@@ -4,6 +4,7 @@
 unsigned litmus::internal::cache_t::m_RefCount						 = 0;
 litmus::internal::cache_t::data_t* litmus::internal::cache_t::m_Data = nullptr;
 
+#include <algorithm>
 #include <fstream>
 
 using namespace litmus::internal;
