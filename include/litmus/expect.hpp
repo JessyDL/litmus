@@ -65,12 +65,6 @@ namespace litmus
 			bool result{false};
 			std::string what{};
 		};
-
-		template <typename T>
-		concept IsStringType = requires(T t)
-		{
-			static_cast<std::string>(t);
-		};
 	} // namespace internal
 
 	template <typename T>
@@ -79,8 +73,8 @@ namespace litmus
 		constexpr std::string operator()(const T& value) const noexcept
 		{
 			using std::to_string;
-			if constexpr(IsStringType<T>)
-				return value;
+			if constexpr(std::is_convertible_v<T, std::string_view> || std::is_constructible_v<std::string, T>)
+				return std::string{ value };
 			else
 				return to_string(value);
 		}
