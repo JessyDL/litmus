@@ -74,7 +74,7 @@ namespace litmus
 		{
 			using std::to_string;
 			if constexpr(std::is_convertible_v<T, std::string_view> || std::is_constructible_v<std::string, T>)
-				return std::string{ value };
+				return std::string{value};
 			else
 				return to_string(value);
 		}
@@ -114,8 +114,7 @@ namespace litmus
 		{
 			{
 				value_to_string(val)
-			}
-			->std::same_as<std::string>;
+				} -> std::same_as<std::string>;
 		};
 		auto to_string_fn(const auto& val) noexcept -> std::string
 		{
@@ -187,7 +186,8 @@ namespace litmus
 			}
 			return {false};
 		}
-
+		
+		void trigger_break(bool res, bool is_fatal) noexcept;
 
 		void evaluate(const source_location& source, test_result_t::expect_t::operation_t operation,
 					  std::string_view keyword, std::string& lhs_user, std::string& rhs_user);
@@ -224,6 +224,7 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value == rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
@@ -231,6 +232,7 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value != rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::inequal, m_Source);
 				return res;
 			}
@@ -238,6 +240,7 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value < rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::less_than, m_Source);
 				return res;
 			}
@@ -245,6 +248,7 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value > rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::greater_than, m_Source);
 				return res;
 			}
@@ -252,6 +256,7 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value <= rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::less_equal, m_Source);
 				return res;
 			}
@@ -259,6 +264,7 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const bool res{m_Value >= rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::greater_equal, m_Source);
 				return res;
 			}
@@ -282,8 +288,9 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const auto value =
-					std::apply([& fun = m_Fun](auto&... args) { return throws_fn<>(fun, args...); }, m_Args);
+					std::apply([&fun = m_Fun](auto&... args) { return throws_fn<>(fun, args...); }, m_Args);
 				const bool res{value == rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(value, "nothrows", res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
@@ -291,8 +298,9 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const auto value =
-					std::apply([& fun = m_Fun](auto&... args) { return throws_fn<>(fun, args...); }, m_Args);
+					std::apply([&fun = m_Fun](auto&... args) { return throws_fn<>(fun, args...); }, m_Args);
 				const bool res{value != rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(value, "nothrows", res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
@@ -301,8 +309,9 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(
-					[& fun = m_Fun](auto&... args) { return throws_fn<Exceptions...>(fun, args...); }, m_Args);
+					[&fun = m_Fun](auto&... args) { return throws_fn<Exceptions...>(fun, args...); }, m_Args);
 				const bool res{value == rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
@@ -312,8 +321,9 @@ namespace litmus
 			{
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(
-					[& fun = m_Fun](auto&... args) { return throws_fn<Exceptions...>(fun, args...); }, m_Args);
+					[&fun = m_Fun](auto&... args) { return throws_fn<Exceptions...>(fun, args...); }, m_Args);
 				const bool res{value != rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
@@ -323,6 +333,7 @@ namespace litmus
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value == rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
@@ -331,6 +342,7 @@ namespace litmus
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value != rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::inequal, m_Source);
 				return res;
 			}
@@ -340,6 +352,7 @@ namespace litmus
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value < rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::less_than, m_Source);
 				return res;
 			}
@@ -348,6 +361,7 @@ namespace litmus
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value > rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::greater_than, m_Source);
 				return res;
 			}
@@ -356,6 +370,7 @@ namespace litmus
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value <= rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::less_equal, m_Source);
 				return res;
 			}
@@ -364,6 +379,7 @@ namespace litmus
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
 				const bool res{value >= rhs};
+				trigger_break(res, Fatal);
 				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::greater_equal, m_Source);
 				return res;
 			}
@@ -394,7 +410,7 @@ namespace litmus
 	};
 
 	template <typename T, typename... Ts>
-	expect(T&&, Ts&&...)->expect<T, Ts...>;
+	expect(T&&, Ts&&...) -> expect<T, Ts...>;
 
 	template <typename T, typename... Ts>
 	struct expect_true : public expect<T, Ts...>
@@ -411,7 +427,7 @@ namespace litmus
 	};
 
 	template <typename T, typename... Ts>
-	expect_true(T&&, Ts&&...)->expect_true<T, Ts...>;
+	expect_true(T&&, Ts&&...) -> expect_true<T, Ts...>;
 
 	template <typename T, typename... Ts>
 	struct expect_false : public expect<T, Ts...>
@@ -428,7 +444,7 @@ namespace litmus
 	};
 
 	template <typename T, typename... Ts>
-	expect_false(T&&, Ts&&...)->expect_false<T, Ts...>;
+	expect_false(T&&, Ts&&...) -> expect_false<T, Ts...>;
 
 	template <typename T, typename... Ts>
 	struct require : public std::conditional_t<std::is_invocable_v<T, Ts...>, expect_invocable_t<true, T, Ts...>,
@@ -442,7 +458,7 @@ namespace litmus
 	};
 
 	template <typename T, typename... Ts>
-	require(T&&, Ts&&...)->require<T, Ts...>;
+	require(T&&, Ts&&...) -> require<T, Ts...>;
 
 	template <typename T, typename... Ts>
 	struct require_true : public require<T, Ts...>
@@ -459,7 +475,7 @@ namespace litmus
 	};
 
 	template <typename T, typename... Ts>
-	require_true(T&&, Ts&&...)->require_true<T, Ts...>;
+	require_true(T&&, Ts&&...) -> require_true<T, Ts...>;
 
 	template <typename T, typename... Ts>
 	struct require_false : public require<T, Ts...>
@@ -476,7 +492,7 @@ namespace litmus
 	};
 
 	template <typename T, typename... Ts>
-	require_false(T&&, Ts&&...)->require_false<T, Ts...>;
+	require_false(T&&, Ts&&...) -> require_false<T, Ts...>;
 
 
 	template <IsStringifyable... Ts>

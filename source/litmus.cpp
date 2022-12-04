@@ -99,6 +99,12 @@ void configure(std::span<const std::string_view> args)
 		 []([[maybe_unused]] std::span<const std::string_view> args) { internal::config->rerun_failed = true; }},
 		{"single-threaded",
 		 []([[maybe_unused]] std::span<const std::string_view> args) { internal::config->single_threaded = true; }},
+		{"break",
+		 []([[maybe_unused]] std::span<const std::string_view> args) {
+			 internal::config->break_on_fatal = args[0] == "on-fatal";
+			 internal::config->break_on_fail  = args[0] == "on-fail";
+		 },
+		 1},
 		{"no-source",
 		 []([[maybe_unused]] std::span<const std::string_view> args) { internal::config->no_source = true; }},
 		{"source", [](std::span<const std::string_view> args) { internal::config->source = args[0]; }, 1, 0},
@@ -256,8 +262,7 @@ auto litmus::run(int argc, char* argv[],
 			}
 		}
 		result.skipped = result.results.empty();
-		if(!result.skipped)
-			result.location = std::begin(result.results)->root().location;
+		if(!result.skipped) result.location = std::begin(result.results)->root().location;
 		return result;
 	};
 

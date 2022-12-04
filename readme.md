@@ -34,6 +34,19 @@ int main(int argc, char* argv[])
 You'll need to provide the `--source` parameter when launching, this is either an absolute, or relative path in relation to the executable, to the location where the tests' source code resides. If you don't want source expansion, or don't have access to the source, launch using `--no-source`.
 
 ## Documentation
+### Options
+Following is a list of options, and values they can have. Options only accept a single value unless otherwise stated, and flag options do not have values. The first value listed is the default value.
+- `--verbosity {normal|none|compact|detailed}`: controls the amount of data that will be sent to the `formatter`. Note it's up to the formatter to tweak its output based on the amount of information is received.
+- `--formatter {detailed-plaintext|json|compact}`: Logs using the specific formatter to the console (unless an output is selected).
+- `--source { enter path to source }`: Path to the source used in the compilation, note that this path is in respect to the binary as it was compiled.
+- `--source-size-limit { 80 }`: Max characters it will scan/recover in the source file, after which it will add an extender symbol (`...`)
+- `--category { any category used in the tests suites }`: Will only run tests that satisfy the given categories, this accepts 1 to many values.
+- `--output { path relative to binary }`: outputs the content that normally gets sent to the console, also to a file using the formatter.
+- `--no-source`: Removes the source information from the output, this should be set if there is no source information to begin with.
+- `--break {on-fail|on-fatal}`: Triggers a breakpoint when a failure condition is reached. This only works when run with a debugger.
+- `--rerun-failed`: Rerun a suite if it happens to fail
+- `--single-threaded`: disable the multithreaded test runners, and run everything in a single thread instead.
+
 ### Suite
 Suites are the top level testing unit, they are meant to be independent work tasks that can potentially run in parallel. You can instantiate a testing `suite` by includeing `<litmus/suite.hpp>`.
 

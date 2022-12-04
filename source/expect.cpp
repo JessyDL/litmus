@@ -8,6 +8,20 @@
 #include <litmus/details/test_result.hpp>
 #include <litmus/litmus.hpp>
 
+#ifdef _MSC_VER
+#define DEBUG_BREAK() __debugbreak()
+#else
+#include <signal.h>
+#define DEBUG_BREAK() raise(SIGTRAP)
+#endif
+
+void litmus::internal::trigger_break(bool res, bool is_fatal) noexcept
+{
+	if(!res && (config->break_on_fail || (config->break_on_fatal && is_fatal)))
+	{
+		DEBUG_BREAK();
+	}
+}
 
 void litmus::internal::evaluate(const source_location& source, test_result_t::expect_t::operation_t operation,
 								std::string_view keyword, std::string& lhs_user, std::string& rhs_user)

@@ -27,6 +27,8 @@ namespace litmus
 				verbosity_t verbosity{verbosity_t::NORMAL};
 				bool rerun_failed{false};
 				bool single_threaded{false};
+				bool break_on_fatal{false};
+				bool break_on_fail{false};
 			} * data;
 
 			config_t()
@@ -44,7 +46,7 @@ namespace litmus
 			config_t(config_t&&)	  = delete;
 
 			auto operator=(config_t const&) -> config_t& = delete;
-			auto operator=(config_t &&) -> config_t& = delete;
+			auto operator=(config_t&&) -> config_t&		 = delete;
 
 			[[nodiscard]] auto iverbosity() const noexcept -> std::underlying_type_t<verbosity_t>
 			{
@@ -52,7 +54,7 @@ namespace litmus
 			}
 			[[nodiscard]] auto configured() const noexcept { return !data->source.empty(); }
 
-			auto operator-> () const -> data_t* { return data; }
+			auto operator->() const -> data_t* { return data; }
 
 			static unsigned m_RefCount;
 		};
