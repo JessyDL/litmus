@@ -67,13 +67,22 @@ list(APPEND LITMUS_INCLUDES_DIRECTORIES include)
 #######################################################################################################################
 ### Setup	 																										###
 #######################################################################################################################
+
+find_library(STRTYPE_LIB strtype)
+if(NOT STRTYPE_LIB)
+	add_subdirectory(extern/strtype)
+else()
+	message(INFO "found already existing strtype library, using the provided one")
+endif()
+
+
 add_library(${LOCAL_PROJECT} STATIC ${LITMUS_SOURCES})
 target_include_directories(${LOCAL_PROJECT} PUBLIC ${LITMUS_INCLUDES_DIRECTORIES})
 target_compile_features(${LOCAL_PROJECT} PUBLIC cxx_std_20)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-target_link_libraries(${LOCAL_PROJECT} PUBLIC Threads::Threads)
+target_link_libraries(${LOCAL_PROJECT} PUBLIC Threads::Threads PRIVATE strtype)
 
 if(develop_mode)
 	# -Wno-error=terminate is silenced globally due to constent expressions not figuring out that they are not runtime, and 

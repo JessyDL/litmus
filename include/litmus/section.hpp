@@ -6,10 +6,27 @@
 #include <litmus/details/scope.hpp>
 #include <litmus/details/test_result.hpp>
 
+#include "strtype/strtype.hpp"
+
 namespace litmus
 {
 	inline namespace internal
 	{
+		template<typename T>
+		concept HasToString = requires(std::remove_cvref_t<T> t) { std::to_string(t); };
+
+		template <HasToString T>
+		auto stringify(T&& val) -> std::string
+		{
+			return std::to_string(val);
+		}
+
+		template <typename T>
+		auto stringify(T&&) -> std::string
+		{
+			return std::string { strtype::stringify_typename<T>() };
+		}
+
 		struct section_functor
 		{
 			section_functor()
@@ -59,7 +76,7 @@ namespace litmus
 
 				suite_context.working_stack.set(m_Depth, m_Index);
 				suite_context.output.scope_open(name, suite_context.working_stack, location,
-												std::vector<std::string>{std::to_string(values)...});
+												std::vector<std::string>{stringify(values)...});
 				try
 				{
 					if constexpr(sizeof...(InvokeTypes) > 0)

@@ -3,12 +3,14 @@
 #include <string>
 #include <type_traits>
 
+#include "strtype/strtype.hpp"
+
 namespace litmus
 {
 	template <typename T>
 	inline auto type_to_name(std::type_identity<T>) -> std::string
 	{
-		return typeid(T).name();
+		return std::string { strtype::stringify_typename<T>() };
 	}
 
 	template <>
