@@ -1,0 +1,3 @@
+[submodule "extern/strtype"]
+	path = extern/strtype
+	url = https://github.com/JessyDL/strtype.git
