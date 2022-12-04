@@ -68,11 +68,10 @@ list(APPEND LITMUS_INCLUDES_DIRECTORIES include)
 ### Setup	 																										###
 #######################################################################################################################
 
-find_library(STRTYPE_LIB strtype)
-if(NOT STRTYPE_LIB)
+if(NOT ${STRTYPE_PROJECT})
 	add_subdirectory(extern/strtype)
 else()
-	message(INFO "found already existing strtype library, using the provided one")
+	message(STATUS "found already existing strtype library, using the provided one")
 endif()
 
 
