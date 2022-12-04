@@ -82,7 +82,7 @@ target_compile_features(${LOCAL_PROJECT} PUBLIC cxx_std_20)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-target_link_libraries(${LOCAL_PROJECT} PUBLIC Threads::Threads PRIVATE strtype)
+target_link_libraries(${LOCAL_PROJECT} PUBLIC Threads::Threads strtype)
 
 if(develop_mode)
 	# -Wno-error=terminate is silenced globally due to constent expressions not figuring out that they are not runtime, and 
