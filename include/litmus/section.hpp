@@ -12,21 +12,6 @@ namespace litmus
 {
 	inline namespace internal
 	{
-		template<typename T>
-		concept HasToString = requires(std::remove_cvref_t<T> t) { std::to_string(t); };
-
-		template <HasToString T>
-		auto stringify(T&& val) -> std::string
-		{
-			return std::to_string(val);
-		}
-
-		template <typename T>
-		auto stringify(T&&) -> std::string
-		{
-			return std::string { strtype::stringify_typename<T>() };
-		}
-
 		struct section_functor
 		{
 			section_functor()

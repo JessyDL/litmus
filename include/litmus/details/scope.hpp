@@ -82,12 +82,26 @@ namespace litmus
 		{
 			T::is_generator;
 		};
+		
+		template <typename T>
+		concept HasToString = requires(std::remove_cvref_t<T> t) { std::to_string(t); };
 
+		template <HasToString T>
+		auto stringify(T&& val) -> std::string
+		{
+			return std::to_string(val);
+		}
+
+		template <typename T>
+		auto stringify(T&&) -> std::string
+		{
+			return std::string{strtype::stringify_typename<T>()};
+		}
 
 		template <typename T, size_t... N>
 		auto pack_to_string_impl(const T& values, std::index_sequence<N...>) -> std::vector<std::string>
 		{
-			return {std::to_string(std::get<N>(values))...};
+			return {stringify(std::get<N>(values))...};
 		}
 		template <size_t N>
 		auto pack_to_string(const auto& values) -> std::vector<std::string>
