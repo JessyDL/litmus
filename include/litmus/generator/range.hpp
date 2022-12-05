@@ -68,4 +68,7 @@ namespace litmus::generator
 		static constexpr type m_Values[sizeof...(Values) + 1]{Value0, Values...};
 		size_t m_Current{0};
 	};
+
+	template <typename type, auto... Values>
+	using array_typed = array<type{Values}...>;
 } // namespace litmus::generator
