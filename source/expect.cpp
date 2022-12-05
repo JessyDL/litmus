@@ -119,7 +119,7 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 	except(lhs_ptr_diff < 0, std::runtime_error("lhs_user user clause has a detection error."));
 
 	if(static_cast<size_t>(lhs_ptr_diff) > config->source_size_limit)
-		lhs_user = "...";
+		lhs_user = std::string{lhs_user_begin_ptr, config->source_size_limit - 3} + std::string{"..."};
 	else
 	{
 		lhs_user = std::string{lhs_user_begin_ptr, lhs_user_end_ptr};
@@ -154,7 +154,7 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 	except(rhs_ptr_diff < 0, std::runtime_error("rhs_user user clause has a detection error."));
 
 	if(static_cast<size_t>(rhs_ptr_diff) > config->source_size_limit)
-		rhs_user = "...";
+		rhs_user = std::string{rhs_user_begin_ptr, config->source_size_limit - 3} + std::string{"..."};
 	else
 	{
 		rhs_user = std::string{rhs_user_begin_ptr, rhs_user_end_ptr};
