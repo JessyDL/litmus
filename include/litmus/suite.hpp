@@ -75,43 +75,42 @@ namespace litmus
 	}
 
 	template <fixed_string Name, fixed_string... Categories, typename T0>
-	requires(IsCopyConstructible<T0>)
-		[[nodiscard]] constexpr auto suite(T0&& v0, const source_location& location = source_location::current())
+		requires(IsCopyConstructible<T0>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, const source_location& location = source_location::current())
 	{
 		return scope_t<suite_functor, T0>(Name, {Categories...}, location, std::forward<T0>(v0));
 	}
 
 	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1>
-	requires(IsCopyConstructible<T0, T1>)
-		[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1,
-										   const source_location& location = source_location::current())
+		requires(IsCopyConstructible<T0, T1>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, const source_location& location = source_location::current())
 	{
 		return scope_t<suite_functor, T0, T1>(Name, {Categories...}, location, std::forward<T0>(v0),
 											  std::forward<T1>(v1));
 	}
 
 	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2>
-	requires(IsCopyConstructible<T0, T1, T2>)
-		[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2,
-										   const source_location& location = source_location::current())
+		requires(IsCopyConstructible<T0, T1, T2>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2,
+									   const source_location& location = source_location::current())
 	{
 		return scope_t<suite_functor, T0, T1, T2>(Name, {Categories...}, location, std::forward<T0>(v0),
 												  std::forward<T1>(v1), std::forward<T2>(v2));
 	}
 
 	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3>
-	requires(IsCopyConstructible<T0, T1, T2, T3>)
-		[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3,
-										   const source_location& location = source_location::current())
+		requires(IsCopyConstructible<T0, T1, T2, T3>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3,
+									   const source_location& location = source_location::current())
 	{
 		return scope_t<suite_functor, T0, T1, T2, T3>(Name, {Categories...}, location, std::forward<T0>(v0),
 													  std::forward<T1>(v1), std::forward<T2>(v2), std::forward<T3>(v3));
 	}
 	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
 			  typename T4>
-	requires(IsCopyConstructible<T0, T1, T2, T3, T4>)
-		[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4,
-										   const source_location& location = source_location::current())
+		requires(IsCopyConstructible<T0, T1, T2, T3, T4>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4,
+									   const source_location& location = source_location::current())
 	{
 		return scope_t<suite_functor, T0, T1, T2, T3, T4>(Name, {Categories...}, location, std::forward<T0>(v0),
 														  std::forward<T1>(v1), std::forward<T2>(v2),
@@ -119,9 +118,9 @@ namespace litmus
 	}
 	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
 			  typename T4, typename T5>
-	requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5>)
-		[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5,
-										   const source_location& location = source_location::current())
+		requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5,
+									   const source_location& location = source_location::current())
 	{
 		return scope_t<suite_functor, T0, T1, T2, T3, T4, T5>(
 			Name, {Categories...}, location, std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
@@ -129,9 +128,9 @@ namespace litmus
 	}
 	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
 			  typename T4, typename T5, typename T6>
-	requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5, T6>)
-		[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5, T6&& v6,
-										   const source_location& location = source_location::current())
+		requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5, T6>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5, T6&& v6,
+									   const source_location& location = source_location::current())
 	{
 		return scope_t<suite_functor, T0, T1, T2, T3, T4, T5, T6>(
 			Name, {Categories...}, location, std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
@@ -140,13 +139,98 @@ namespace litmus
 
 	template <fixed_string Name, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
 			  typename T4, typename T5, typename T6, typename T7>
-	requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5, T6, T7>)
-		[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5, T6&& v6, T7&& v7,
-										   const source_location& location = source_location::current())
+		requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5, T6, T7>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5, T6&& v6, T7&& v7,
+									   const source_location& location = source_location::current())
 	{
 		return scope_t<suite_functor, T0, T1, T2, T3, T4, T5, T6, T7>(
 			Name, {Categories...}, location, std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
 			std::forward<T3>(v3), std::forward<T4>(v4), std::forward<T5>(v5), std::forward<T6>(v6),
 			std::forward<T7>(v7));
+	}
+
+	template <typename TName, fixed_string... Categories>
+	[[nodiscard]] constexpr auto suite(const source_location& location = source_location::current())
+	{
+		constexpr fixed_string name{strtype::stringify_typename<TName>().buf};
+		return suite<name, Categories...>(location);
+	}
+
+	template <typename TName, fixed_string... Categories, typename T0>
+		requires(IsCopyConstructible<T0>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, const source_location& location = source_location::current())
+	{
+		constexpr fixed_string name{strtype::stringify_typename<TName>().buf};
+		return suite<name, Categories...>(std::forward<T0>(v0), location);
+	}
+
+	template <typename TName, fixed_string... Categories, typename T0, typename T1>
+		requires(IsCopyConstructible<T0, T1>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, const source_location& location = source_location::current())
+	{
+		constexpr fixed_string name{strtype::stringify_typename<TName>().buf};
+		return suite<name, Categories...>(std::forward<T0>(v0), std::forward<T1>(v1), location);
+	}
+
+	template <typename TName, fixed_string... Categories, typename T0, typename T1, typename T2>
+		requires(IsCopyConstructible<T0, T1, T2>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2,
+									   const source_location& location = source_location::current())
+	{
+		constexpr fixed_string name{strtype::stringify_typename<TName>().buf};
+		return suite<name, Categories...>(std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2), location);
+	}
+
+	template <typename TName, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3>
+		requires(IsCopyConstructible<T0, T1, T2, T3>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3,
+									   const source_location& location = source_location::current())
+	{
+		constexpr fixed_string name{strtype::stringify_typename<TName>().buf};
+		return suite<name, Categories...>(std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
+										  std::forward<T3>(v3), location);
+	}
+	template <typename TName, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
+			  typename T4>
+		requires(IsCopyConstructible<T0, T1, T2, T3, T4>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4,
+									   const source_location& location = source_location::current())
+	{
+		constexpr fixed_string name{strtype::stringify_typename<TName>().buf};
+		return suite<name, Categories...>(std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
+										  std::forward<T3>(v3), std::forward<T4>(v4), location);
+	}
+	template <typename TName, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
+			  typename T4, typename T5>
+		requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5,
+									   const source_location& location = source_location::current())
+	{
+		constexpr fixed_string name{strtype::stringify_typename<TName>().buf};
+		return suite<name, Categories...>(std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
+										  std::forward<T3>(v3), std::forward<T4>(v4), std::forward<T5>(v5), location);
+	}
+	template <typename TName, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
+			  typename T4, typename T5, typename T6>
+		requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5, T6>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5, T6&& v6,
+									   const source_location& location = source_location::current())
+	{
+		constexpr fixed_string name{strtype::stringify_typename<TName>().buf};
+		return suite<name, Categories...>(std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
+										  std::forward<T3>(v3), std::forward<T4>(v4), std::forward<T5>(v5),
+										  std::forward<T6>(v6), location);
+	}
+
+	template <typename TName, fixed_string... Categories, typename T0, typename T1, typename T2, typename T3,
+			  typename T4, typename T5, typename T6, typename T7>
+		requires(IsCopyConstructible<T0, T1, T2, T3, T4, T5, T6, T7>)
+	[[nodiscard]] constexpr auto suite(T0&& v0, T1&& v1, T2&& v2, T3&& v3, T4&& v4, T5&& v5, T6&& v6, T7&& v7,
+									   const source_location& location = source_location::current())
+	{
+		constexpr fixed_string name{strtype::stringify_typename<TName>().buf};
+		return suite<name, Categories...>(std::forward<T0>(v0), std::forward<T1>(v1), std::forward<T2>(v2),
+										  std::forward<T3>(v3), std::forward<T4>(v4), std::forward<T5>(v5),
+										  std::forward<T6>(v6), std::forward<T7>(v7), location);
 	}
 } // namespace litmus
