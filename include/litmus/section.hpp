@@ -71,7 +71,14 @@ namespace litmus
 				}
 				catch(const std::exception& e)
 				{
-					std::cerr << e.what() << '\n';
+					std::cerr << "Exception logged in section: " << name << std::endl;
+					std::cerr << "message: " << e.what() << std::endl;
+					throw e;
+				}
+				catch(...)
+				{
+					std::cerr << "Exception logged in section: " << name << std::endl;
+					std::rethrow_exception(std::current_exception());
 				}
 				suite_context.output.scope_close();
 				suite_context.working_stack.resize(m_Depth - 1);

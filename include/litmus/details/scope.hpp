@@ -253,24 +253,39 @@ namespace litmus
 			scope_t& test(Fn&& fn)
 			{
 				if(m_HasRun || !m_ScopeObject.should_run()) return *this;
-				if constexpr(SupportsGenerators<Functor>)
+				try
 				{
-					args_base::unpack_args([&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject,
-											&categories = m_Categories](auto&&... values) {
-							scope.template operator()<>(fn, name, location, categories, std::forward<decltype(values)>(values)...);
+					if constexpr(SupportsGenerators<Functor>)
+					{
+						args_base::unpack_args([&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject,
+												&categories = m_Categories](auto&&... values) {
+							scope.template operator()<>(fn, name, location, categories,
+														std::forward<decltype(values)>(values)...);
 						});
+					}
+					else
+					{
+						std::apply(
+							[&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject,
+							 &categories = m_Categories](auto&&... values) {
+								static_assert((!IsGenerator<std::remove_cvref_t<decltype(values)>> && ...),
+											  "generator types not supported on sections.");
+								scope.template operator()<>(fn, name, location, categories,
+															std::forward<decltype(values)>(values)...);
+							},
+							args_base::m_ScopeArgs);
+					}
 				}
-				else
+				catch(const std::exception& e)
 				{
-					std::apply(
-						[&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject,
-						 &categories = m_Categories](auto&&... values) {
-							static_assert((!IsGenerator<std::remove_cvref_t<decltype(values)>> && ...),
-										  "generator types not supported on sections.");
-							scope.template operator()<>(fn, name, location,
-														categories, std::forward<decltype(values)>(values)...);
-						},
-						args_base::m_ScopeArgs);
+					std::cerr << "Exception logged in scope: " << m_Name << std::endl;
+					std::cerr << "message: " << e.what() << std::endl;
+					throw e;
+				}
+				catch (...)
+				{
+					std::cerr << "Exception logged in scope: " << m_Name << std::endl;
+					std::rethrow_exception(std::current_exception());
 				}
 				m_HasRun = true;
 				return *this;
