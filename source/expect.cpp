@@ -10,6 +10,8 @@
 
 #ifdef _MSC_VER
 #define DEBUG_BREAK() __debugbreak()
+#elif __APPLE__
+#define DEBUG_BREAK() __builtin_trap()
 #else
 #include <signal.h>
 #define DEBUG_BREAK() raise(SIGTRAP)
