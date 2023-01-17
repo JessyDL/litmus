@@ -70,7 +70,7 @@ namespace litmus
 	template <typename T>
 	struct value_to_string_t
 	{
-		constexpr std::string operator()(const T& value) const noexcept
+		std::string operator()(const T& value) const noexcept
 		{
 			using std::to_string;
 			if constexpr(std::is_convertible_v<T, std::string_view> || std::is_constructible_v<std::string, T>)
@@ -90,7 +90,7 @@ namespace litmus
 	struct value_to_string_t<throws_t<Ts...>>
 	{
 		using type = throws_t<Ts...>;
-		constexpr std::string operator()([[maybe_unused]] const type& value) const noexcept
+		std::string operator()([[maybe_unused]] const type& value) const noexcept
 		{
 			std::string res{"throws<"};
 			if constexpr(sizeof...(Ts) > 0)
@@ -110,12 +110,11 @@ namespace litmus
 	inline namespace internal
 	{
 		template <typename T>
-		concept IsStringifyable = requires(const T& val)
-		{
-			{
-				value_to_string(val)
-				} -> std::same_as<std::string>;
-		};
+		concept IsStringifyable = requires(const T& val) {
+									  {
+										  value_to_string(val)
+										  } -> std::same_as<std::string>;
+								  };
 		auto to_string_fn(const auto& val) noexcept -> std::string
 		{
 			using T = std::remove_cvref_t<typename std::decay<decltype(val)>::type>;
@@ -146,7 +145,7 @@ namespace litmus
 		}
 
 		template <typename Ex, typename... ExRemainder>
-		constexpr auto throws_fn_impl(auto& fn, auto&... args) -> throws_result_t
+		auto throws_fn_impl(auto& fn, auto&... args) -> throws_result_t
 		{
 			try
 			{
@@ -167,7 +166,7 @@ namespace litmus
 		}
 
 		template <typename... Exceptions>
-		constexpr auto throws_fn(auto& fn, auto&... args) noexcept -> throws_result_t
+		auto throws_fn(auto& fn, auto&... args) noexcept -> throws_result_t
 		{
 			try
 			{
@@ -186,7 +185,7 @@ namespace litmus
 			}
 			return {false};
 		}
-		
+
 		void trigger_break(bool res, bool is_fatal) noexcept;
 
 		void evaluate(const source_location& source, test_result_t::expect_t::operation_t operation,
@@ -198,9 +197,8 @@ namespace litmus
 		} expect_info;
 
 		template <bool Fatal>
-		constexpr inline void log_expect(const auto& lhs, const auto& rhs, bool res,
-										 test_result_t::expect_t::operation_t operation,
-										 const source_location& location) noexcept
+		inline void log_expect(const auto& lhs, const auto& rhs, bool res,
+							   test_result_t::expect_t::operation_t operation, const source_location& location) noexcept
 		{
 			std::string lhs_user{};
 			std::string rhs_user{};
@@ -328,7 +326,8 @@ namespace litmus
 				return res;
 			}
 
-			auto operator==(const auto& rhs) const noexcept -> bool requires(!IsThrowable<decltype(rhs)>)
+			auto operator==(const auto& rhs) const noexcept -> bool
+				requires(!IsThrowable<decltype(rhs)>)
 			{
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
@@ -337,7 +336,8 @@ namespace litmus
 				log_expect<Fatal>(value, rhs, res, test_result_t::expect_t::operation_t::equal, m_Source);
 				return res;
 			}
-			auto operator!=(const auto& rhs) const noexcept -> bool requires(!IsThrowable<decltype(rhs)>)
+			auto operator!=(const auto& rhs) const noexcept -> bool
+				requires(!IsThrowable<decltype(rhs)>)
 			{
 				if(suite_context.output.fatal) return false;
 				const auto value = std::apply(m_Fun, m_Args);
@@ -391,10 +391,7 @@ namespace litmus
 		};
 
 		template <typename T, typename Y, typename... Ts>
-		concept IsInvocableMemFn = requires(T t, Y y)
-		{
-			std::mem_fn(t, y);
-		};
+		concept IsInvocableMemFn = requires(T t, Y y) { std::mem_fn(t, y); };
 
 	} // namespace internal
 

@@ -9,6 +9,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <unordered_map>
 
 #include <litmus/details/source_location.hpp>
 #include <litmus/details/verbosity.hpp>

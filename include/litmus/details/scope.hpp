@@ -18,16 +18,10 @@ namespace litmus
 	inline namespace internal
 	{
 		template <typename T>
-		concept SupportsGenerators = requires
-		{
-			T::supports_generators == true;
-		};
+		concept SupportsGenerators = requires { T::supports_generators == true; };
 
 		template <typename T>
-		concept SupportsTemplates = requires
-		{
-			T::supports_templates == true;
-		};
+		concept SupportsTemplates = requires { T::supports_templates == true; };
 
 		template <typename T>
 		struct is_tpack : std::false_type
@@ -78,11 +72,8 @@ namespace litmus
 	inline namespace internal
 	{
 		template <typename T>
-		concept IsGenerator = requires
-		{
-			T::is_generator;
-		};
-		
+		concept IsGenerator = requires { T::is_generator; };
+
 		template <typename T>
 		concept HasToString = requires(std::remove_cvref_t<T> t) { std::to_string(t); };
 
@@ -182,11 +173,11 @@ namespace litmus
 
 				if constexpr(Index + 1 == sizeof...(FnTypes))
 				{
-					(args_base::unpack_args(
-						 [&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject, &categories = m_Categories](auto&&... values) {
-							 scope.template operator()<InvokeTypes..., typename fn_type::template type<N>>(
+					(args_base::unpack_args([&fn, name = m_Name, location = m_Location, &scope = m_ScopeObject,
+											 &categories = m_Categories](auto&&... values) {
+						 scope.template operator()<InvokeTypes..., typename fn_type::template type<N>>(
 							 fn, name, location, categories, std::forward<decltype(values)>(values)...);
-						 }),
+					 }),
 					 ...);
 				}
 				else
@@ -237,8 +228,8 @@ namespace litmus
 
 		  public:
 			template <typename... Ys>
-			constexpr scope_t(const char* name, std::vector<const char*> categories, const source_location& location,
-							  Ys&&... values)
+			scope_t(const char* name, std::vector<const char*> categories, const source_location& location,
+					Ys&&... values)
 				: args_base(std::forward<Ys>(values)...), m_Name(name), m_Categories(categories), m_Location(location)
 			{}
 			const char* name() noexcept { return m_Name; }
@@ -282,7 +273,7 @@ namespace litmus
 					std::cerr << "message: " << e.what() << std::endl;
 					throw e;
 				}
-				catch (...)
+				catch(...)
 				{
 					std::cerr << "Exception logged in scope: " << m_Name << std::endl;
 					std::rethrow_exception(std::current_exception());
@@ -292,7 +283,8 @@ namespace litmus
 			}
 
 			template <IsTemplatePack Y, IsTemplatePack... Ys>
-			requires(SupportsTemplates<Functor>) auto templates() -> templated_scope_t<Functor, tuple_t, Y, Ys...>
+				requires(SupportsTemplates<Functor>)
+			auto templates() -> templated_scope_t<Functor, tuple_t, Y, Ys...>
 			{
 				return templated_scope_t<Functor, tuple_t, Y, Ys...>{std::move(m_ScopeObject), m_Name,
 																	 std::move(m_Categories),

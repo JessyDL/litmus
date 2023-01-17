@@ -10,7 +10,7 @@ namespace litmus
 	template <typename T>
 	inline auto type_to_name(std::type_identity<T>) -> std::string
 	{
-		return std::string { strtype::stringify_typename<T>() };
+		return std::string{strtype::stringify_typename<T>()};
 	}
 
 	template <>
@@ -108,7 +108,7 @@ namespace litmus
 			return N - 1;
 		}
 
-		inline auto text_size(const char&) noexcept -> size_t { return {1}; }
+		inline auto text_size(const char&) noexcept -> size_t { return 1; }
 
 		template <typename... Ts>
 		inline auto combine_text(Ts&&... values) -> std::string
