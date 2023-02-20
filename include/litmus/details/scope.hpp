@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <typeinfo>
 #include <tuple>
+#include <iostream>
 
 #include <litmus/details/context.hpp>
 #include <litmus/details/source_location.hpp>

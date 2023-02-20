@@ -51,8 +51,8 @@ auto basic_test = suite<"basic", "cat0", "cat1">() = []() {
 		true) == true;
 	expect(5) == 5;
 	require(5) == 5;
-	expect(5) != 5;
-	require(5) != 5;
+	expect(6) != 5;
+	require(6) != 5;
 	expect(5) == 5;
 };
 

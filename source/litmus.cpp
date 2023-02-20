@@ -208,6 +208,7 @@ auto litmus::run(int argc, char* argv[],
 		formatter->set_stream(std::cout, true);
 	else
 	{
+		// todo this needs a delete..
 		filestream = new std::ofstream(output_file);
 		formatter->set_stream(*filestream, false);
 	}

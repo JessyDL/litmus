@@ -70,3 +70,4 @@ __pycache__
 # Generated files
 include/psl/psl.hpp
 include/psl/config.hpp
+out/
