@@ -9,11 +9,10 @@ project(${LOCAL_PROJECT} VERSION 0.0.1 LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-option(avx2 "support avx2" FALSE)
-option(examples "build examples" FALSE)
-option(develop_mode "develop mode" FALSE)
+option(LITMUS_EXAMPLES "build examples" FALSE)
+option(LITMUS_DEVELOP_MODE "develop mode" FALSE)
 
-if(develop_mode)
+if(LITMUS_DEVELOP_MODE)
 	SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 endif()
 
@@ -68,7 +67,7 @@ list(APPEND LITMUS_INCLUDES_DIRECTORIES include)
 ### Setup	 																										###
 #######################################################################################################################
 
-if(NOT ${STRTYPE_PROJECT})
+if(NOT TARGET strtype)
 	add_subdirectory(extern/strtype)
 else()
 	message(STATUS "found already existing strtype library, using the provided one")
@@ -83,7 +82,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 target_link_libraries(${LOCAL_PROJECT} PUBLIC Threads::Threads strtype)
 
-if(develop_mode)
+if(LITMUS_DEVELOP_MODE)
 	# -Wno-error=terminate is silenced globally due to constent expressions not figuring out that they are not runtime, and 
 	# so warn of throws in noexcept marked functions.
 
@@ -96,6 +95,6 @@ if(develop_mode)
 		)
 endif()
 
-if(examples)
+if(LITMUS_EXAMPLES)
 	add_subdirectory(examples)
 endif()
