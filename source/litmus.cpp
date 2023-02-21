@@ -296,10 +296,11 @@ auto litmus::run(int argc, char* argv[],
 	{
 		std::vector<std::future<suite_results_t>> suite_results{};
 		suite_results.reserve(internal::runner.size());
-		for(const auto& [name, test_units] : internal::runner)
+		for(const auto& runner : internal::runner)
 		{
 			std::packaged_task<suite_results_t()> task(
-				[&run_suite, name, test_units, categories = std::span<std::string>{config->categories}]() -> suite_results_t {
+				[&run_suite, name = runner.first, test_units = runner.second,
+				 categories = std::span<std::string>{config->categories}]() -> suite_results_t {
 					return run_suite(name, test_units, categories);
 				});
 			suite_results.emplace_back(task.get_future());
