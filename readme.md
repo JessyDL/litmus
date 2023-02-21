@@ -25,13 +25,15 @@ If you want a bit more control, you can instead use the `LITMUS_MAIN()` macro af
 
 If you want a custom main, you can use the following example as a template for how to setup your `main()`
 ```cpp
+LITMUS_EXTERN(); // Mandatory when using a custom main
+
 int main(int argc, char* argv[])
 {
 	return litmus::run(argc, argv);
 }
 ```
 
-You'll need to provide the `--source` parameter when launching, this is either an absolute, or relative path in relation to the executable, to the location where the tests' source code resides. If you don't want source expansion, or don't have access to the source, launch using `--no-source`.
+You'll need to provide the `--source` parameter when launching, this is either an absolute, or relative path in relation to the executable, to the location where the tests' source code resides. If you don't want source expansion, or don't have access to the source, launch using `--no-source`. Alternatively you could define `#define LITMUS_NO_SOURCE` if you wished to disable the source expansion altogether.
 
 ## Documentation
 ### Options
@@ -56,6 +58,12 @@ The makeup of the function looks as follows:
 ```cpp
 auto test_obj = suite<"name", "category0", ..., "categoryN">(parameters...) = [functional object];
 ```
+
+You can also provide a `typename` insted of a `"name"` like so:
+```cpp
+auto test_obj = suite<bool, "category0", ..., "categoryN">(parameters...) = [functional object];
+```
+This will automatically expand to a stringified name (`"bool"` in the given example).
 
 Suites can have a name, and 0 to N categories. The name is a *non-unique mandatory* string used for the output of the tests, while the categories can be used to restrict which types of tests to run. Note that the name can act as a "category of one" meaning you can limit the execution based on the name as well.
 
