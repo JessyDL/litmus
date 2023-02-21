@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <litmus/details/test_result.hpp>
 #include <litmus/details/utility.hpp>
 
 namespace litmus
@@ -30,6 +29,8 @@ namespace litmus
 		{
 			return uuid<typename std::decay<Ts>::type...>;
 		}
+
+		struct test_result_t;
 
 		struct runner_t
 		{

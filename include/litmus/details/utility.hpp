@@ -2,6 +2,7 @@
 
 #include <string>
 #include <type_traits>
+#include <numeric>
 
 #include "strtype/strtype.hpp"
 
