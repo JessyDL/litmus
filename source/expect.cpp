@@ -29,38 +29,46 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 								std::string_view keyword, std::string& lhs_user, std::string& rhs_user)
 {
 	if(config->no_source) return;
-	auto get_end_of_scope = [](const auto end, auto& it, auto offset, size_t depth = 0u,
-							   char terminator = ')') -> size_t {
+	auto get_end_of_scope = [](std::string_view source, size_t depth = 1u, char open_scope = '(',
+							   char close_scope = ')', char terminator = ')') -> size_t {
+		std::string_view ignore_chars{"\"'"};
 		char ignore = '0';
-		for(; it != end; ++it)
+		size_t result{0};
+		for(auto ch : source)
 		{
-			std::string_view line = it->substr(offset);
-			for(auto ch : line)
+			++result;
+			if(ignore != '0')
 			{
-				++offset;
-				if(ignore != '0' && ignore == ch)
+				if(ignore == ch)
 				{
 					ignore = '0';
-					continue;
 				}
-				if(ignore != '0' && (ch == '\'' || ch == '"'))
-				{
-					ignore = ch;
-					continue;
-				}
+				continue;
+			}
+			else if(ignore_chars.find(ch) != ignore_chars.npos)
+			{
+				ignore = ch;
+				continue;
+			}
 
-				if(ch == '(')
+			if(ch == open_scope)
+			{
+				++depth;
+			}
+			else if(ch == close_scope)
+			{
+				--depth;
+				if(depth == 0 && close_scope == terminator)
 				{
-					++depth;
-				}
-				if((ch == ')' || (ch == terminator && depth == 1)) && --depth == 0)
-				{
-					return offset - 1;
+					return result - 1;
 				}
 			}
-			offset = 0u;
+			else if(depth == 0 && ch == terminator)
+			{
+				return result - 1;
+			}
 		}
-		return std::numeric_limits<size_t>::max();
+		return source.npos;
 	};
 
 	auto operation_to_string = [](auto operation) -> std::string_view {
@@ -84,86 +92,76 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 		throw std::runtime_error("unhandled operation");
 	};
 
-	const auto& file = cache.get(config->source + source.file_name());
+	constexpr auto blank_space = std::string_view{"\r\n\t "};
+	const auto& file		   = cache.get(config->source + source.file_name());
 
-	auto it = std::next(file.begin(), source.line() - 1);
+	auto source_view = file.substr(source.line() - 1);
 
 	// parse line for expect;
-	auto expect = it->rfind(keyword, source.column());
-	// we parse forward, potentially column isn't known
-	if(expect == std::string::npos)
+	size_t lhs_begin_scope{0};
+	while(lhs_begin_scope != std::string::npos)
 	{
-		expect = it->find(keyword);
-	}
-	// if expect still isn't known, we are guaranteed to be within a scope, so we need to rfind every previous line
-	// for a potential expect.
-	while(expect == std::string::npos && --it != file.begin())
-	{
-		expect = it->rfind(keyword);
+		lhs_begin_scope = source_view.find(keyword, lhs_begin_scope);
+		if(lhs_begin_scope != std::string::npos)
+		{
+			if(auto next = source_view.find_first_not_of(blank_space, lhs_begin_scope + keyword.size());
+			   next != std::string::npos && source_view[next] == '(')
+			{
+				lhs_begin_scope = next + 1;
+				break;
+			}
+		}
 	}
 
-	// todo: should be more robust. We should scan to previous line to make sure we aren't within a statement.
-	except(expect == std::string::npos,
+	except(lhs_begin_scope == std::string::npos,
 		   std::runtime_error("could not find the start of the lhs_user '" + std::string(keyword) + "' clause."));
 
-	const auto lhs_user_begin	= expect + keyword.size();
-	auto lhs_user_begin_ptr		= &((*it)[lhs_user_begin + 1]);
-	const auto lhs_user_end		= get_end_of_scope(std::end(file), it, lhs_user_begin);
-	const auto lhs_user_end_ptr = &((*it)[lhs_user_end]);
+	lhs_begin_scope = source_view.find_first_not_of(blank_space, lhs_begin_scope);
+	except(lhs_begin_scope == std::string::npos,
+		   std::runtime_error("could not find the start of the lhs_user clause."));
+	auto lhs_size = get_end_of_scope(source_view.substr(lhs_begin_scope), 1, '(', ')', ')');
+	except(lhs_size == std::string::npos, std::runtime_error("could not find the end of the lhs_user clause."));
 
-	while(*lhs_user_begin_ptr == '\r' || *lhs_user_begin_ptr == '\t' || *lhs_user_begin_ptr == '\n' ||
-		  *lhs_user_begin_ptr == ' ')
+	if(lhs_size > config->source_size_limit)
 	{
-		++lhs_user_begin_ptr;
+		lhs_user.reserve(config->source_size_limit);
+		lhs_user = source_view.substr(lhs_begin_scope, config->source_size_limit - 3);
+		lhs_user += std::string_view{"..."};
 	}
-
-	const auto lhs_ptr_diff = lhs_user_end_ptr - lhs_user_begin_ptr;
-	except(lhs_ptr_diff < 0, std::runtime_error("lhs_user user clause has a detection error."));
-
-	if(static_cast<size_t>(lhs_ptr_diff) > config->source_size_limit)
-		lhs_user = std::string{lhs_user_begin_ptr, config->source_size_limit - 3} + std::string{"..."};
 	else
 	{
-		lhs_user = std::string{lhs_user_begin_ptr, lhs_user_end_ptr};
-		lhs_user.erase(std::remove(lhs_user.begin(), lhs_user.end(), '\n'), lhs_user.end());
-		lhs_user.erase(std::remove(lhs_user.begin(), lhs_user.end(), '\r'), lhs_user.end());
-		lhs_user.erase(std::remove(lhs_user.begin(), lhs_user.end(), '\t'), lhs_user.end());
+		lhs_user = source_view.substr(lhs_begin_scope, lhs_size);
 	}
+	lhs_user.erase(std::remove(lhs_user.begin(), lhs_user.end(), '\n'), lhs_user.end());
+	lhs_user.erase(std::remove(lhs_user.begin(), lhs_user.end(), '\r'), lhs_user.end());
+	lhs_user.erase(std::remove(lhs_user.begin(), lhs_user.end(), '\t'), lhs_user.end());
+
+	auto op_view = file.substr(source.line() - 1, lhs_begin_scope + lhs_size + 1);
 
 	const auto& op_str	 = operation_to_string(operation);
-	auto operation_begin = it->find(op_str, lhs_user_end + 1);
-	while(operation_begin == std::string::npos && ++it != std::end(file))
-	{
-		operation_begin = it->find(op_str);
-	}
+	auto operation_begin = op_view.find(op_str);
 	except(operation_begin == std::string::npos,
 		   std::runtime_error("could not find the start of the operator '" + std::string(op_str) + "' clause."));
 
-	const auto operation_end = operation_begin + op_str.size();
-	auto rhs_user_begin		 = it->find_first_not_of(" \n\r\t", operation_end);
-	while(rhs_user_begin == std::string::npos && ++it != std::end(file))
+	const auto operation_end = lhs_begin_scope + lhs_size + 1 + operation_begin + op_str.size();
+	auto rhs_user_view		 = source_view.substr(operation_end);
+	rhs_user_view			 = rhs_user_view.substr(rhs_user_view.find_first_not_of(blank_space));
+
+	except(rhs_user_view.empty(), std::runtime_error("could not find the start of the rhs_user clause."));
+
+	rhs_user_view = rhs_user_view.substr(0, get_end_of_scope(rhs_user_view, 0, '(', ')', ';'));
+
+	if((rhs_user_view.size() > config->source_size_limit))
 	{
-		rhs_user_begin = it->find_first_not_of(" \n\r\t");
+		rhs_user.reserve(config->source_size_limit);
+		rhs_user = rhs_user_view.substr(0, config->source_size_limit - 3);
+		rhs_user += std::string_view{"..."};
 	}
-
-	except(rhs_user_begin == std::string::npos, std::runtime_error("could not find the start of the rhs_user clause."));
-
-	const auto rhs_user_begin_ptr = &((*it)[rhs_user_begin]);
-	const auto rhs_user_end		  = get_end_of_scope(std::end(file), it, rhs_user_begin, 1u, ';');
-	const auto rhs_user_end_ptr	  = &((*it)[rhs_user_end]);
-
-	const auto rhs_ptr_diff = rhs_user_end_ptr - rhs_user_begin_ptr;
-	except(rhs_ptr_diff < 0, std::runtime_error("rhs_user user clause has a detection error."));
-
-	if(static_cast<size_t>(rhs_ptr_diff) > config->source_size_limit)
-		rhs_user = std::string{rhs_user_begin_ptr, config->source_size_limit - 3} + std::string{"..."};
 	else
 	{
-		rhs_user = std::string{rhs_user_begin_ptr, rhs_user_end_ptr};
-		rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\n'), rhs_user.end());
-		rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\r'), rhs_user.end());
-		rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\t'), rhs_user.end());
-
-		// rhs_user.replace('\n');
+		rhs_user = rhs_user_view;
 	}
+	rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\n'), rhs_user.end());
+	rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\r'), rhs_user.end());
+	rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\t'), rhs_user.end());
 }
