@@ -299,7 +299,7 @@ auto litmus::run(int argc, char* argv[],
 		for(const auto& [name, test_units] : internal::runner)
 		{
 			std::packaged_task<suite_results_t()> task(
-				[&, categories = std::span<std::string>{config->categories}]() -> suite_results_t {
+				[&run_suite, name, test_units, categories = std::span<std::string>{config->categories}]() -> suite_results_t {
 					return run_suite(name, test_units, categories);
 				});
 			suite_results.emplace_back(task.get_future());
