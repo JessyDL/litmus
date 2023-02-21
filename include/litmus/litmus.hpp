@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <litmus/details/verbosity.hpp>
+#include <litmus/details/cache.hpp>
 
 
 namespace litmus
@@ -18,7 +19,7 @@ namespace litmus
 		struct config_t
 		{
 
-			static struct data_t
+			struct data_t
 			{
 				bool no_source{false};
 				std::string source{};
@@ -29,19 +30,9 @@ namespace litmus
 				bool single_threaded{false};
 				bool break_on_fatal{false};
 				bool break_on_fail{false};
-			} * data;
+			} data{};
 
-			config_t()
-			{
-				if(m_RefCount == 0) data = new data_t();
-				++m_RefCount;
-			}
-
-			~config_t()
-			{
-				if(--m_RefCount == 0) delete(data);
-			}
-
+			config_t()				  = default;
 			config_t(config_t const&) = delete;
 			config_t(config_t&&)	  = delete;
 
@@ -50,16 +41,15 @@ namespace litmus
 
 			[[nodiscard]] auto iverbosity() const noexcept -> std::underlying_type_t<verbosity_t>
 			{
-				return static_cast<std::underlying_type_t<verbosity_t>>(data->verbosity);
+				return static_cast<std::underlying_type_t<verbosity_t>>(data.verbosity);
 			}
-			[[nodiscard]] auto configured() const noexcept { return !data->source.empty(); }
+			[[nodiscard]] auto configured() const noexcept { return !data.source.empty(); }
 
-			auto operator->() const -> data_t* { return data; }
-
-			static unsigned m_RefCount;
+			auto operator->() const -> data_t const* { return &data; }
+			auto operator->() -> data_t* { return &data; }
 		};
 
-		config_t const config;
+		extern config_t config;
 	} // namespace internal
 
 	// NOLINTNEXTLINE
@@ -73,7 +63,13 @@ namespace litmus
 #include <litmus/expect.hpp>
 #endif
 
+#define LITMUS_EXTERN()                                                                                                \
+	litmus::internal::runner_t litmus::internal::runner{};                                                             \
+	litmus::internal::cache_t litmus::internal::cache{};                                                               \
+	litmus::internal::config_t litmus::internal::config {}
+
 #define LITMUS_MAIN()                                                                                                  \
+	LITMUS_EXTERN();                                                                                                   \
 	int main(int argc, char* argv[]) { return litmus::run(argc, argv); }
 
 #if defined(LITMUS_FULL)

@@ -1,11 +1,7 @@
 #include <litmus/details/runner.hpp>
 #include <litmus/details/context.hpp>
 #include <litmus/litmus.hpp>
-unsigned litmus::internal::runner_t::m_RefCount																  = 0;
-std::unordered_map<const char*, litmus::internal::runner_t::test_t>* litmus::internal::runner_t::m_NamedTests = nullptr;
-unsigned litmus::internal::config_t::m_RefCount																  = 0;
-litmus::internal::config_t::data_t* litmus::internal::config_t::data										  = nullptr;
-thread_local litmus::internal::suite_context_t litmus::internal::suite_context								  = {};
+thread_local litmus::internal::suite_context_t litmus::internal::suite_context = {};
 
 #include <exception>
 #include <fstream>
@@ -302,8 +298,13 @@ auto litmus::run(int argc, char* argv[],
 		suite_results.reserve(internal::runner.size());
 		for(const auto& [name, test_units] : internal::runner)
 		{
-			suite_results.emplace_back(std::async(std::launch::async, run_suite, name, test_units,
-												  std::span<std::string>{config->categories}));
+			std::packaged_task<suite_results_t()> task(
+				[&run_suite, &name, &test_units,
+				 categories = std::span<std::string>{config->categories}]() -> suite_results_t {
+					return run_suite(name, test_units, categories);
+				});
+			suite_results.emplace_back(task.get_future());
+			std::thread(std::move(task)).detach();
 		}
 
 		for(auto& suite_future : suite_results)

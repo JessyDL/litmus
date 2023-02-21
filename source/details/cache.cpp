@@ -1,9 +1,6 @@
 #include <litmus/details/cache.hpp>
 #include <litmus/details/source_location.hpp>
 
-unsigned litmus::internal::cache_t::m_RefCount						 = 0;
-litmus::internal::cache_t::data_t* litmus::internal::cache_t::m_Data = nullptr;
-
 #include <algorithm>
 #include <fstream>
 
@@ -54,6 +51,6 @@ file_t::file_t(const std::string& filename)
 
 const file_t& cache_t::get(const std::string& file) const
 {
-	std::scoped_lock lock{m_Data->mutex};
-	return m_Data->files.try_emplace(file, file).first->second;
+	std::scoped_lock lock{m_Data.mutex};
+	return m_Data.files.try_emplace(file, file).first->second;
 }

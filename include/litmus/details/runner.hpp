@@ -40,43 +40,33 @@ namespace litmus
 				std::vector<std::function<test_result_t()>> functions{};
 			};
 
-			using test_t = std::unordered_map<uuid_t, template_pack_t>;
-
-			runner_t()
-			{
-				if(m_RefCount == 0)
-				{
-					m_NamedTests = new std::unordered_map<const char*, test_t>();
-				}
-				++m_RefCount;
-			}
-
-			~runner_t()
-			{
-				if(--m_RefCount == 0)
-				{
-					delete(m_NamedTests);
-				}
-			}
-
+			using test_t			  = std::unordered_map<uuid_t, template_pack_t>;
+			runner_t()				  = default;
 			runner_t(runner_t const&) = delete;
 			runner_t(runner_t&&)	  = delete;
 
 			auto operator=(runner_t const&) -> runner_t& = delete;
-			auto operator=(runner_t &&) -> runner_t& = delete;
+			auto operator=(runner_t&&) -> runner_t&		 = delete;
 
-			[[nodiscard]] static auto begin() noexcept { return m_NamedTests->begin(); }
-			[[nodiscard]] static auto cbegin() noexcept { return m_NamedTests->cbegin(); }
+			[[nodiscard]] auto begin() noexcept { return m_NamedTests.begin(); }
+			[[nodiscard]] auto begin() const noexcept { return m_NamedTests.begin(); }
+			[[nodiscard]] auto cbegin() const noexcept { return m_NamedTests.cbegin(); }
 
-			[[nodiscard]] static auto end() noexcept { return m_NamedTests->end(); }
-			[[nodiscard]] static auto cend() noexcept { return m_NamedTests->cend(); }
+			[[nodiscard]] auto end() noexcept { return m_NamedTests.end(); }
+			[[nodiscard]] auto end() const noexcept { return m_NamedTests.cend(); }
+			[[nodiscard]] auto cend() const noexcept { return m_NamedTests.cend(); }
 
-			[[nodiscard]] static auto size() noexcept { return m_NamedTests->size(); }
+			[[nodiscard]] auto size() const noexcept { return m_NamedTests.size(); }
 
 			template <typename... Ts>
-			static void test(const char* name, auto&& arg)
+			void test(const char* name, auto&& arg)
 			{
-				auto& t = (*m_NamedTests)[name][uuid_for<Ts...>()];
+				if(auto it = m_NamedTests.find(name); it == std::end(m_NamedTests))
+				{
+					m_NamedTests.emplace(name, test_t{});
+				}
+				auto& test = m_NamedTests[name];
+				auto& t	   = test[uuid_for<Ts...>()];
 				if constexpr(sizeof...(Ts) > 0)
 				{
 					if(t.templates.size() != sizeof...(Ts))
@@ -86,17 +76,16 @@ namespace litmus
 			}
 
 			template <typename T>
-			static void benchmark(T&& arg)
+			void benchmark(T&& arg)
 			{
 				m_Benchmarks->emplace_back(std::forward<T>(arg));
 			}
 
 		  private:
-			static std::unordered_map<const char*, test_t>* m_NamedTests;
-			static std::vector<std::function<void()>>* m_Benchmarks;
-			static unsigned m_RefCount;
+			std::unordered_map<const char*, test_t> m_NamedTests;
+			std::vector<std::function<void()>> m_Benchmarks;
 		};
 
-		runner_t const runner;
+		extern runner_t runner;
 	} // namespace internal
 } // namespace litmus

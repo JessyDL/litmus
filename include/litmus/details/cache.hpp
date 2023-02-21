@@ -36,17 +36,7 @@ namespace litmus
 			};
 
 		  public:
-			cache_t()
-			{
-				if(m_RefCount == 0) m_Data = new data_t();
-				++m_RefCount;
-			}
-
-			~cache_t()
-			{
-				if(--m_RefCount == 0) delete(m_Data);
-			}
-
+			cache_t()				= default;
 			cache_t(cache_t const&) = delete;
 			cache_t(cache_t&&)		= delete;
 
@@ -57,10 +47,9 @@ namespace litmus
 			const file_t& get(const std::string& file) const;
 
 		  private:
-			static data_t* m_Data;
-			static unsigned m_RefCount;
+			mutable data_t m_Data{};
 		};
 
-		const cache_t cache;
+		extern cache_t cache;
 	} // namespace internal
 } // namespace litmus
