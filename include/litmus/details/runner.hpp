@@ -79,7 +79,7 @@ namespace litmus
 			template <typename T>
 			void benchmark(T&& arg)
 			{
-				m_Benchmarks->emplace_back(std::forward<T>(arg));
+				m_Benchmarks.emplace_back(std::forward<T>(arg));
 			}
 
 		  private:
