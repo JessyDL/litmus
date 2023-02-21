@@ -8,6 +8,7 @@
 
 #include <litmus/details/verbosity.hpp>
 #include <litmus/details/cache.hpp>
+#include <litmus/details/runner.hpp>
 
 
 namespace litmus
