@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "exceptions.hpp"
 
 namespace litmus
 {
@@ -13,16 +14,12 @@ namespace litmus
 		{
 		  public:
 			file_t(const std::string& filename);
-			auto begin() noexcept -> std::vector<std::string_view>::iterator { return std::begin(m_Lines); }
-			auto begin() const noexcept -> std::vector<std::string_view>::const_iterator { return std::begin(m_Lines); }
-			auto cbegin() const noexcept -> std::vector<std::string_view>::const_iterator
-			{
-				return std::cbegin(m_Lines);
-			}
-			auto end() noexcept -> std::vector<std::string_view>::iterator { return std::end(m_Lines); }
-			auto end() const noexcept -> std::vector<std::string_view>::const_iterator { return std::end(m_Lines); }
-			auto cend() const noexcept -> std::vector<std::string_view>::const_iterator { return std::cend(m_Lines); }
 
+			auto substr(size_t line, size_t offset = 0) const -> std::string_view
+			{
+				except(line > m_LinePos.size() || m_LinePos[line] + offset > m_Content.size(), std::range_error{"Out of bounds access"});
+				return static_cast<std::string_view>(m_Content).substr(m_LinePos[line] + offset);
+			}
 		  private:
 			std::string m_Content;
 			std::vector<size_t> m_LinePos;
