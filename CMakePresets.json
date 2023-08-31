@@ -1,34 +1,61 @@
 {
-    "version": 1,
+    "version": 3,
     "cmakeMinimumRequired": {
         "major": 3,
         "minor": 19,
         "patch": 0
     },
     "configurePresets": [
-        {
-            "name": "default",
-            "binaryDir": "${sourceDir}/build/${presetName}",
-            "generator": "Ninja",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "examples": {
-                    "type": "BOOL",
-                    "value": "OFF"
-                  }
-            }
-          },
-          {
-            "name": "development",
-            "binaryDir": "${sourceDir}/build/${presetName}",
-            "generator": "Ninja",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "examples": {
-                    "type": "BOOL",
-                    "value": "ON"
-                  }
-            }
-          }
+      {
+        "hidden": true,
+        "name": "base",
+        "binaryDir": "${sourceDir}/build/${presetName}"
+      },
+      {
+        "name": "default",
+        "inherits": [
+          "base"
+        ],
+        "cacheVariables": {
+          "LITMUS_DEVELOP_MODE": "OFF",
+          "LITMUS_EXAMPLES": "OFF"
+        }
+      },
+      {
+        "name": "development",
+        "inherits": [
+          "base"
+        ],
+        "cacheVariables": {
+          "LITMUS_DEVELOP_MODE": "ON",
+          "LITMUS_EXAMPLES": "ON"
+        }
+      }
+    ],
+    "buildPresets": [
+      {
+        "name": "default-debug",
+        "displayName": "default (Debug)",
+        "configurePreset": "default",
+        "configuration": "Debug"
+      },
+      {
+        "name": "default-release",
+        "displayName": "default (Release)",
+        "configurePreset": "default",
+        "configuration": "Release"
+      },
+      {
+        "name": "development-debug",
+        "displayName": "development (Debug)",
+        "configurePreset": "development",
+        "configuration": "Debug"
+      },
+      {
+        "name": "development-release",
+        "displayName": "development (Release)",
+        "configurePreset": "development",
+        "configuration": "Release"
+      }
     ]
   }
