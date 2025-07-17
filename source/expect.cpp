@@ -17,6 +17,10 @@
 #define DEBUG_BREAK() raise(SIGTRAP)
 #endif
 
+#ifndef LITMUS_NOEXCEPT
+#include <stdexcept> // std::runtime_error
+#endif
+
 void litmus::internal::trigger_break(bool res, bool is_fatal) noexcept
 {
 	if(!res && (config->break_on_fail || (config->break_on_fatal && is_fatal)))

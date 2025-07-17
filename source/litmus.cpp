@@ -22,6 +22,10 @@ thread_local litmus::internal::suite_context_t litmus::internal::suite_context =
 #include <litmus/formatter/json.hpp>
 #include <litmus/formatter/compact.hpp>
 
+#ifndef LITMUS_NOEXCEPT
+#include <stdexcept> // std::runtime_error
+#endif
+
 std::string output_file = "";
 
 using namespace litmus;
