@@ -4,6 +4,11 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#ifndef LITMUS_NOEXCEPT
+#include <stdexcept> // std::range_error
+#endif
+
 #include "exceptions.hpp"
 
 namespace litmus
