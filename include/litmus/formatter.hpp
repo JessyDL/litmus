@@ -9,15 +9,21 @@ namespace litmus
 	class formatter
 	{
 	  public:
-		formatter()					= default;
-		virtual ~formatter()		= default;
+		formatter() = default;
+		virtual ~formatter()
+		{
+			if(!m_IsConsole)
+			{
+				delete(m_Output);
+			}
+		}
 		formatter(const formatter&) = default;
 		formatter(formatter&&)		= default;
 
 		auto operator=(const formatter&) -> formatter& = default;
-		auto operator=(formatter &&) -> formatter& = default;
+		auto operator=(formatter&&) -> formatter&	   = default;
 
-		virtual void begin(size_t){};
+		virtual void begin(size_t) {};
 
 		virtual void suite_begin([[maybe_unused]] const char* name, [[maybe_unused]] size_t pass,
 								 [[maybe_unused]] size_t fail, [[maybe_unused]] size_t fatal,
@@ -48,7 +54,7 @@ namespace litmus
 								  [[maybe_unused]] size_t fatal, [[maybe_unused]] std::chrono::microseconds duration,
 								  [[maybe_unused]] std::chrono::microseconds user_duration)
 		{}
-		virtual void end(){};
+		virtual void end() {};
 		void set_stream(std::ostream& stream, bool is_console)
 		{
 			m_Output	= &stream;

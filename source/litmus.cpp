@@ -252,7 +252,8 @@ auto litmus::run(int argc, char* argv[],
 			for(const auto& test : tests.functions)
 			{
 				auto res = test();
-				if(res.results.empty()) continue;
+				res.init();
+				if(res.results->empty()) continue;
 				result.results.emplace_back(std::move(res));
 
 				result.results.back().get_result_values(local_pass, local_fail, local_fatal, local_duration);

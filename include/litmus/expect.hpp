@@ -111,10 +111,8 @@ namespace litmus
 	{
 		template <typename T>
 		concept IsStringifyable = requires(const T& val) {
-									  {
-										  value_to_string(val)
-										  } -> std::same_as<std::string>;
-								  };
+			{ value_to_string(val) } -> std::same_as<std::string>;
+		};
 		auto to_string_fn(const auto& val) noexcept -> std::string
 		{
 			using T = std::remove_cvref_t<typename std::decay<decltype(val)>::type>;
@@ -189,23 +187,27 @@ namespace litmus
 		void trigger_break(bool res, bool is_fatal) noexcept;
 
 		void evaluate(const source_location& source, test_result_t::expect_t::operation_t operation,
-					  std::string_view keyword, std::string& lhs_user, std::string& rhs_user);
+					  std::string_view keyword, std::string& lhs_user, std::string& rhs_user, bool no_explicit_op);
 
 		static thread_local struct
 		{
-			std::string message;
+			std::unique_ptr<std::string> message;
 		} expect_info;
 
-		template <bool Fatal>
+		template <bool Fatal, bool NoExplicitOp = false>
 		inline void log_expect(const auto& lhs, const auto& rhs, bool res,
 							   test_result_t::expect_t::operation_t operation, const source_location& location) noexcept
 		{
 			std::string lhs_user{};
 			std::string rhs_user{};
-			evaluate(location, operation, (Fatal) ? "require" : "expect", lhs_user, rhs_user);
+			if(!expect_info.message)
+			{
+				expect_info.message = std::make_unique<std::string>();
+			}
+			evaluate(location, operation, (Fatal) ? "require" : "expect", lhs_user, rhs_user, NoExplicitOp);
 			suite_context.output.expect_result(to_string_fn(lhs), to_string_fn(rhs), lhs_user, rhs_user, operation, res,
-											   Fatal, expect_info.message);
-			expect_info.message = {};
+											   Fatal, *expect_info.message);
+			expect_info.message->clear();
 
 			suite_context.output.fatal = !res && Fatal;
 		}
@@ -270,6 +272,86 @@ namespace litmus
 
 		  private:
 			T m_Value;
+			source_location m_Source;
+		};
+
+		template <bool Fatal>
+		class expect_t<Fatal, bool>
+		{
+		  public:
+			template <typename Y>
+			constexpr expect_t(const source_location& source, Y&& value) noexcept
+				: m_Value(std::forward<Y>(value)), m_Source(source)
+			{}
+
+			~expect_t()
+			{
+				if(!m_HasLogged)
+				{
+					if(suite_context.output.fatal) return;
+					trigger_break(!m_Value, Fatal);
+					log_expect<Fatal, true>(m_Value, true, m_Value, test_result_t::expect_t::operation_t::equal, m_Source);
+				}
+			}
+
+			[[maybe_unused]] auto operator==(const auto& rhs) const noexcept -> bool
+			{
+				m_HasLogged = true;
+				if(suite_context.output.fatal) return false;
+				const bool res{m_Value == rhs};
+				trigger_break(res, Fatal);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::equal, m_Source);
+				return res;
+			}
+			[[maybe_unused]] auto operator!=(const auto& rhs) const noexcept -> bool
+			{
+				m_HasLogged = true;
+				if(suite_context.output.fatal) return false;
+				const bool res{m_Value != rhs};
+				trigger_break(res, Fatal);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::inequal, m_Source);
+				return res;
+			}
+			[[maybe_unused]] auto operator<(const auto& rhs) const noexcept -> bool
+			{
+				m_HasLogged = true;
+				if(suite_context.output.fatal) return false;
+				const bool res{m_Value < rhs};
+				trigger_break(res, Fatal);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::less_than, m_Source);
+				return res;
+			}
+			[[maybe_unused]] auto operator>(const auto& rhs) const noexcept -> bool
+			{
+				m_HasLogged = true;
+				if(suite_context.output.fatal) return false;
+				const bool res{m_Value > rhs};
+				trigger_break(res, Fatal);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::greater_than, m_Source);
+				return res;
+			}
+			[[maybe_unused]] auto operator<=(const auto& rhs) const noexcept -> bool
+			{
+				m_HasLogged = true;
+				if(suite_context.output.fatal) return false;
+				const bool res{m_Value <= rhs};
+				trigger_break(res, Fatal);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::less_equal, m_Source);
+				return res;
+			}
+			[[maybe_unused]] auto operator>=(const auto& rhs) const noexcept -> bool
+			{
+				m_HasLogged = true;
+				if(suite_context.output.fatal) return false;
+				const bool res{m_Value >= rhs};
+				trigger_break(res, Fatal);
+				log_expect<Fatal>(m_Value, rhs, res, test_result_t::expect_t::operation_t::greater_equal, m_Source);
+				return res;
+			}
+
+		  private:
+			bool m_Value;
+			mutable bool m_HasLogged{false};
 			source_location m_Source;
 		};
 
@@ -496,6 +578,10 @@ namespace litmus
 	void info(Ts&&... values)
 	{
 		if(suite_context.output.fatal) return;
+		if(!expect_info.message)
+		{
+			expect_info.message = std::make_unique<std::string>();
+		}
 		expect_info.message = std::move(combine_text(value_to_string(std::forward<Ts>(values))...));
 	}
 

@@ -130,17 +130,61 @@ namespace litmus
 				size_t parent_index{};
 			};
 
+			test_result_t() = default;
+			test_result_t(test_result_t const& other) : fails(other.fails), fatal(other.fatal)
+			{
+				if(other.results)
+				{
+					results = std::make_unique<std::vector<std::variant<scope_t, scope_close_t, expect_t>>>(*other.results);
+					active_scope_index = std::make_unique<std::stack<size_t>>(*other.active_scope_index);
+				}
+			}
+			test_result_t(test_result_t&& other) noexcept : fails(other.fails), fatal(other.fatal)
+			{
+				results = std::move(other.results);
+				active_scope_index = std::move(other.active_scope_index);
+			}
+			test_result_t& operator=(test_result_t const& other)
+			{
+				if(this != &other)
+				{
+					fails = other.fails;
+					fatal = other.fatal;
+					if(other.results)
+					{
+						results = std::make_unique<std::vector<std::variant<scope_t, scope_close_t, expect_t>>>(
+							*other.results);
+						active_scope_index = std::make_unique<std::stack<size_t>>(*other.active_scope_index);
+					}
+				}
+				return *this;
+			}
+
+			test_result_t& operator=(test_result_t&& other) noexcept
+			{
+				if(this != &other)
+				{
+					fails = other.fails;
+					fatal = other.fatal;
+					results = std::move(other.results);
+					active_scope_index = std::move(other.active_scope_index);
+				}
+				return *this;
+			}
+
 			void scope_open(const std::string& name, test_id_t id, const source_location& location,
 							std::vector<std::string> parameters = {})
 			{
-				active_scope_index.push(results.size());
-				results.emplace_back(
+				init();
+				active_scope_index->push(results->size());
+				results->emplace_back(
 					scope_t{name, parameters, id, location, {}, {}, {}, {}, std::chrono::high_resolution_clock::now()});
 			} // namespace internal
 
 			void scope_results(size_t index, size_t pass, size_t fail, size_t fatal)
 			{
-				if(auto* scope = std::get_if<scope_t>(&results[index]); scope)
+				init();
+				if(auto* scope = std::get_if<scope_t>(&results->operator[](index)); scope)
 				{
 					scope->pass	 = pass;
 					scope->fail	 = fail;
@@ -154,32 +198,34 @@ namespace litmus
 
 			void scope_close()
 			{
-				const auto index = active_scope_index.top();
-				results.emplace_back(scope_close_t{index});
-				if(auto* scope = std::get_if<scope_t>(&results[index]); scope)
+				init();
+				const auto index = active_scope_index->top();
+				results->emplace_back(scope_close_t{index});
+				if(auto* scope = std::get_if<scope_t>(&results->operator[](index)); scope)
 				{
-					scope->children		= results.size() - index - 1;
+					scope->children		= results->size() - index - 1;
 					scope->duration_end = std::chrono::high_resolution_clock::now();
 				}
 				else
 				{
 					throw std::exception();
 				}
-				active_scope_index.pop();
+				active_scope_index->pop();
 			}
 
 			void expect_result(const std::string& lhs_value, const std::string& rhs_value, const std::string& lhs_user,
 							   const std::string& rhs_user, expect_t::operation_t operation, bool pass, bool fatal,
 							   const std::string& info)
 			{
-				const auto parent = active_scope_index.top();
-				results.emplace_back(
+				init();
+				const auto parent = active_scope_index->top();
+				results->emplace_back(
 					expect_t{lhs_value, rhs_value, lhs_user, rhs_user, operation, info,
 							 ((pass) ? expect_t::result_t::pass
 									 : ((fatal) ? expect_t::result_t::fatal : expect_t::result_t::fail)),
 							 parent});
 
-				if(auto* scope = std::get_if<scope_t>(&results[parent]); scope)
+				if(auto* scope = std::get_if<scope_t>(&results->operator[](parent)); scope)
 				{
 					if(pass)
 						scope->pass += 1;
@@ -220,7 +266,8 @@ namespace litmus
 
 			void sync()
 			{
-				for(auto it = std::begin(results); it != std::end(results); ++it)
+				init();
+				for(auto it = std::begin(*results); it != std::end(*results); ++it)
 				{
 					if(auto* scope = std::get_if<scope_t>(&*it); scope)
 					{
@@ -235,7 +282,8 @@ namespace litmus
 			template <typename T>
 			void to_string(T* logger) const
 			{
-				const auto* suite_scope = std::get_if<scope_t>(&results[0]);
+				init();
+				const auto* suite_scope = std::get_if<scope_t>(results->data());
 				if(suite_scope)
 				{
 					if(!suite_scope->parameters.empty()) logger->suite_iterate_parameters(suite_scope->parameters);
@@ -243,8 +291,8 @@ namespace litmus
 				else
 					throw std::exception();
 
-				const auto end = std::prev(std::end(results));
-				for(auto it = std::next(std::begin(results)); it != end; it = std::next(it))
+				const auto end = std::prev(std::end(*results));
+				for(auto it = std::next(std::begin(*results)); it != end; it = std::next(it))
 				{
 					const auto& res = *it;
 					if(const auto* scope = std::get_if<scope_t>(&res); scope)
@@ -253,12 +301,12 @@ namespace litmus
 					}
 					else if(const auto* expect = std::get_if<expect_t>(&res); expect)
 					{
-						scope = std::get_if<scope_t>(&results[expect->parent_index]);
+						scope = std::get_if<scope_t>(&results->operator[](expect->parent_index));
 						logger->expect(*expect, *scope);
 					}
 					else if(const auto* scope_close = std::get_if<scope_close_t>(&res); scope_close)
 					{
-						scope = std::get_if<scope_t>(&results[scope_close->scope_index]);
+						scope = std::get_if<scope_t>(&results->operator[](scope_close->scope_index));
 						logger->scope_end(*scope);
 					}
 				}
@@ -266,7 +314,8 @@ namespace litmus
 
 			void get_result_values(size_t& pass, size_t& fail, size_t& fatal, std::chrono::microseconds& duration) const
 			{
-				if(const auto* scope = std::get_if<scope_t>(&results[0]); scope)
+				init();
+				if(const auto* scope = std::get_if<scope_t>(results->data()); scope)
 				{
 					pass	 = scope->pass;
 					fail	 = scope->fail;
@@ -278,11 +327,16 @@ namespace litmus
 					throw std::exception();
 			}
 
-			void clear() { results.clear(); }
+			void clear()
+			{
+				init();
+				results->clear();
+			}
 
 			auto& root() const
 			{
-				if(const auto* scope = std::get_if<scope_t>(&results[0]); scope)
+				init();
+				if(const auto* scope = std::get_if<scope_t>(results->data()); scope)
 				{
 					return *scope;
 				}
@@ -290,11 +344,21 @@ namespace litmus
 				throw std::exception();
 			}
 
+			void init() const
+			{
+				if(!results)
+				{
+					results = std::make_unique<std::vector<std::variant<scope_t, scope_close_t, expect_t>>>();
+					active_scope_index = std::make_unique<std::stack<size_t>>();
+				}
+			}
+
 			bool fails{false};
 			bool fatal{false};
-			std::vector<std::variant<scope_t, scope_close_t, expect_t>> results{};
-			std::vector<test_id_t> failed_ids{};
-			std::stack<size_t> active_scope_index{};
+
+			// these two are dynamically allocated to avoid the windows leak detector when using f.e. the stdlib's thread pool
+			mutable std::unique_ptr<std::vector<std::variant<scope_t, scope_close_t, expect_t>>> results{};
+			mutable std::unique_ptr<std::stack<size_t>> active_scope_index{};
 		}; // namespace litmus
 
 		class benchmark_result_t

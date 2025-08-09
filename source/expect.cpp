@@ -30,7 +30,7 @@ void litmus::internal::trigger_break(bool res, bool is_fatal) noexcept
 }
 
 void litmus::internal::evaluate(const source_location& source, test_result_t::expect_t::operation_t operation,
-								std::string_view keyword, std::string& lhs_user, std::string& rhs_user)
+								std::string_view keyword, std::string& lhs_user, std::string& rhs_user, bool no_explicit_op)
 {
 	if(config->no_source) return;
 	auto get_end_of_scope = [](std::string_view source, size_t depth = 1u, char open_scope = '(',
@@ -109,10 +109,53 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 		if(lhs_begin_scope != std::string::npos)
 		{
 			if(auto next = source_view.find_first_not_of(blank_space, lhs_begin_scope + keyword.size());
-			   next != std::string::npos && source_view[next] == '(')
+			   next != std::string::npos)
 			{
-				lhs_begin_scope = next + 1;
-				break;
+				auto next_block = source_view.substr(next);
+				if(next_block.starts_with('('))
+				{
+					lhs_begin_scope = next + 1;
+					break;
+				}
+				else if(next_block.starts_with('_'))
+				{
+					next += 1;
+					if(next_block.starts_with("true"))
+					{
+						next += 4;
+					}
+					else if(next_block.starts_with("false"))
+					{
+						next += 5;
+					}
+					else
+					{
+						lhs_begin_scope = next;
+						continue;
+					}
+
+					auto next_non_blank = source_view.find_first_not_of(blank_space, next);
+					if(next_non_blank == std::string::npos)
+					{
+						lhs_begin_scope = next;
+						continue;
+					}
+					else if(source_view[next_non_blank] == '(')
+					{
+						lhs_begin_scope = next_non_blank + 1;
+						break;
+					}
+				}
+				else
+				{
+					lhs_begin_scope = next;
+					continue;
+				}
+			}
+			else
+			{
+				lhs_begin_scope = next;
+				continue;
 			}
 		}
 	}
@@ -140,32 +183,35 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 	lhs_user.erase(std::remove(lhs_user.begin(), lhs_user.end(), '\r'), lhs_user.end());
 	lhs_user.erase(std::remove(lhs_user.begin(), lhs_user.end(), '\t'), lhs_user.end());
 
-	auto op_view = file.substr(source.line() - 1, lhs_begin_scope + lhs_size + 1);
-
-	const auto& op_str	 = operation_to_string(operation);
-	auto operation_begin = op_view.find(op_str);
-	except(operation_begin == std::string::npos,
-		   std::runtime_error("could not find the start of the operator '" + std::string(op_str) + "' clause."));
-
-	const auto operation_end = lhs_begin_scope + lhs_size + 1 + operation_begin + op_str.size();
-	auto rhs_user_view		 = source_view.substr(operation_end);
-	rhs_user_view			 = rhs_user_view.substr(rhs_user_view.find_first_not_of(blank_space));
-
-	except(rhs_user_view.empty(), std::runtime_error("could not find the start of the rhs_user clause."));
-
-	rhs_user_view = rhs_user_view.substr(0, get_end_of_scope(rhs_user_view, 0, '(', ')', ';'));
-
-	if((rhs_user_view.size() > config->source_size_limit))
+	if(!no_explicit_op)
 	{
-		rhs_user.reserve(config->source_size_limit);
-		rhs_user = rhs_user_view.substr(0, config->source_size_limit - 3);
-		rhs_user += std::string_view{"..."};
+		auto op_view = file.substr(source.line() - 1, lhs_begin_scope + lhs_size + 1);
+
+		const auto& op_str	 = operation_to_string(operation);
+		auto operation_begin = op_view.find(op_str);
+		except(operation_begin == std::string::npos,
+			   std::runtime_error("could not find the start of the operator '" + std::string(op_str) + "' clause."));
+
+		const auto operation_end = lhs_begin_scope + lhs_size + 1 + operation_begin + op_str.size();
+		auto rhs_user_view		 = source_view.substr(operation_end);
+		rhs_user_view			 = rhs_user_view.substr(rhs_user_view.find_first_not_of(blank_space));
+
+		except(rhs_user_view.empty(), std::runtime_error("could not find the start of the rhs_user clause."));
+
+		rhs_user_view = rhs_user_view.substr(0, get_end_of_scope(rhs_user_view, 0, '(', ')', ';'));
+
+		if((rhs_user_view.size() > config->source_size_limit))
+		{
+			rhs_user.reserve(config->source_size_limit);
+			rhs_user = rhs_user_view.substr(0, config->source_size_limit - 3);
+			rhs_user += std::string_view{"..."};
+		}
+		else
+		{
+			rhs_user = rhs_user_view;
+		}
+		rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\n'), rhs_user.end());
+		rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\r'), rhs_user.end());
+		rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\t'), rhs_user.end());
 	}
-	else
-	{
-		rhs_user = rhs_user_view;
-	}
-	rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\n'), rhs_user.end());
-	rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\r'), rhs_user.end());
-	rhs_user.erase(std::remove(rhs_user.begin(), rhs_user.end(), '\t'), rhs_user.end());
 }
