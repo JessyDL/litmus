@@ -160,14 +160,22 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 		}
 	}
 
-	except(lhs_begin_scope == std::string::npos,
-		   std::runtime_error("could not find the start of the lhs_user '" + std::string(keyword) + "' clause."));
+	if(lhs_begin_scope == std::string::npos) {
+		lhs_user = "PARSE_ERROR (no_source): could not find the start of the lhs_user '" + std::string(keyword) + "' clause.";
+		return;
+	}
 
 	lhs_begin_scope = source_view.find_first_not_of(blank_space, lhs_begin_scope);
-	except(lhs_begin_scope == std::string::npos,
-		   std::runtime_error("could not find the start of the lhs_user clause."));
+	
+	if(lhs_begin_scope == std::string::npos) {
+		lhs_user = "PARSE_ERROR (no_source): could not find the start of the lhs_user clause.";
+		return;
+	}
 	auto lhs_size = get_end_of_scope(source_view.substr(lhs_begin_scope), 1, '(', ')', ')');
-	except(lhs_size == std::string::npos, std::runtime_error("could not find the end of the lhs_user clause."));
+	if(lhs_size == std::string::npos) {
+		lhs_user = "PARSE_ERROR (no_source): could not find the end of the lhs_user clause.";
+		return;
+	}
 
 	if(lhs_size > config->source_size_limit)
 	{
@@ -189,14 +197,17 @@ void litmus::internal::evaluate(const source_location& source, test_result_t::ex
 
 		const auto& op_str	 = operation_to_string(operation);
 		auto operation_begin = op_view.find(op_str);
-		except(operation_begin == std::string::npos,
-			   std::runtime_error("could not find the start of the operator '" + std::string(op_str) + "' clause."));
+		if(operation_begin == std::string::npos) {
+			rhs_user = "PARSE_ERROR (no_source): could not find the start of the operator '" + std::string(op_str) + "' clause.";
+		}
 
 		const auto operation_end = lhs_begin_scope + lhs_size + 1 + operation_begin + op_str.size();
 		auto rhs_user_view		 = source_view.substr(operation_end);
 		rhs_user_view			 = rhs_user_view.substr(rhs_user_view.find_first_not_of(blank_space));
 
-		except(rhs_user_view.empty(), std::runtime_error("could not find the start of the rhs_user clause."));
+		if(rhs_user_view.empty()) {
+			rhs_user = "PARSE_ERROR (no_source): could not find the start of the rhs_user clause.";
+		}
 
 		rhs_user_view = rhs_user_view.substr(0, get_end_of_scope(rhs_user_view, 0, '(', ')', ';'));
 
