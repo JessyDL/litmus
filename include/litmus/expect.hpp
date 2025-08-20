@@ -289,7 +289,7 @@ namespace litmus
 				if(!m_HasLogged)
 				{
 					if(suite_context.output.fatal) return;
-					trigger_break(!m_Value, Fatal);
+					trigger_break(m_Value, Fatal);
 					log_expect<Fatal, true>(m_Value, true, m_Value, test_result_t::expect_t::operation_t::equal, m_Source);
 				}
 			}
